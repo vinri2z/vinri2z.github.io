@@ -1,69 +1,21 @@
-# Personal Website
+# vinri2z
 
-A simple, elegant static site generator written in Rust. Designed for GitHub Pages hosting.
+Hi, I'm vinri2z.
 
-## Features
+## What Drives Me
 
-- Static HTML generation from Markdown blog posts
-- YAML frontmatter for post metadata
-- Clean, minimal CSS design
-- No JavaScript required
-- Focus on sustainability and AI safety topics
+I care deeply about sustainability and AI safety. These aren't just interests - they're what I think about when I consider the kind of future we're building together.
 
-## Usage
+## How I Work
 
-### Building the site
+I'm a developer who gravitates toward Rust and the Unix philosophy: do one thing well. I prefer simplicity over complexity, and I'd rather delete code than add it.
 
-```bash
-cargo build --release
-cargo run --release
-```
+## What I Write About
 
-The generated site will be in the `output/` directory.
+- Sustainability and our relationship with the planet
+- AI safety, alignment, and the path forward
+- Building software that lasts
 
-### Adding blog posts
+## Let's Talk
 
-Create Markdown files in `content/posts/` with YAML frontmatter:
-
-```markdown
----
-title: "Your Post Title"
-date: "2025-01-20"
-description: "A brief description of your post."
----
-
-Your post content here in Markdown...
-```
-
-### Local preview
-
-You can preview the site locally using any static file server:
-
-```bash
-cd output
-python -m http.server 8000
-```
-
-Then open http://localhost:8000
-
-### Deploying to GitHub Pages
-
-1. Push this repository to GitHub
-2. Go to Settings > Pages
-3. Set Source to "GitHub Actions"
-4. The site will auto-deploy on each push to main
-
-## Structure
-
-```
-personal-website/
-├── src/main.rs           # Site generator
-├── content/posts/        # Markdown blog posts
-├── output/              # Generated HTML (gitignored)
-├── .github/workflows/   # GitHub Actions for deployment
-└── Cargo.toml
-```
-
-## License
-
-MIT
+I'm always happy to connect with others who care about these topics. Feel free to reach out.
