@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        id: next_version
+        run: |
+          latest_tag="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          # Remove 'v' prefix if present
+          version="${latest_tag#v}"
+
+          # Parse version components
+          IFS='.' read -r major minor patch <<< "$version"
+          major=${major:-0}
+          minor=${minor:-0}
+          patch=${patch:-0}
+
+          # Get commit message
+          commit_msg=$(git log -1 --pretty=%B)
+
+          # Determine version bump based on conventional commits
+          if echo "$commit_msg" | grep -qiE "^(BREAKING CHANGE|.*!:)"; then
+            # Major version bump for breaking changes
+            major=$((major + 1))
+            minor=0
+            patch=0
+          elif echo "$commit_msg" | grep -qiE "^feat"; then
+            # Minor version bump for features
+            minor=$((minor + 1))
+            patch=0
+          else
+            # Patch version bump for everything else (fix, docs, chore, etc.)
+            patch=$((patch + 1))
+          fi
+
+          new_version="v${major}.${minor}.${patch}"
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "${{ steps.next_version.outputs.new_version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.next_version.outputs.new_version }}
+          name: Release ${{ steps.next_version.outputs.new_version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
