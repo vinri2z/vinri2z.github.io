@@ -35,16 +35,20 @@ jobs:
           minor=${minor:-0}
           patch=${patch:-0}
 
-          # Get commit message
-          commit_msg=$(git log -1 --pretty=%B)
+          # Get commit message (first line only)
+          commit_msg=$(git log -1 --pretty=%s)
 
           # Determine version bump based on conventional commits
-          if echo "$commit_msg" | grep -qiE "^(BREAKING CHANGE|.*!:)"; then
+          # Supports both standard format (feat:) and gitmoji format (✨ feat:)
+          # Strip leading emoji if present (emojis are 3-4 bytes)
+          clean_msg=$(echo "$commit_msg" | sed 's/^[^a-zA-Z]*//')
+
+          if echo "$clean_msg" | grep -qiE "^BREAKING[ -]?CHANGE" || echo "$commit_msg" | grep -qE "!:"; then
             # Major version bump for breaking changes
             major=$((major + 1))
             minor=0
             patch=0
-          elif echo "$commit_msg" | grep -qiE "^feat"; then
+          elif echo "$clean_msg" | grep -qiE "^feat"; then
             # Minor version bump for features
             minor=$((minor + 1))
             patch=0
