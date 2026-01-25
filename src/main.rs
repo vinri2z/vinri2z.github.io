@@ -708,6 +708,26 @@ fn generate_home_page(output_dir: &Path) {
         </p>
 
         <div class="feature-highlight">
+            <h2>The Wisdom of the Wheel</h2>
+            <p>
+                Consider the wheel and the bicycle—perhaps humanity's most elegant technologies.
+                They don't demand more energy; they <strong>amplify what we already have</strong>.
+                A cyclist moves four times faster than a walker while using the same effort.
+                A cart with wheels lets one person move what would otherwise require many.
+            </p>
+            <p>
+                These inventions didn't conquer nature—they worked with it. They extended our
+                capacity to <strong>move</strong>, to <strong>build</strong>, and to <strong>connect</strong>
+                without requiring ever-greater energy investment. The bicycle remains the most
+                energy-efficient form of human transportation ever devised.
+            </p>
+            <p>
+                This is the measure of truly great technology: not how much power it consumes,
+                but how gracefully it multiplies human capability within natural limits.
+            </p>
+        </div>
+
+        <div class="feature-highlight">
             <h2>Growing Thoughtful Technology</h2>
             <p>
                 In an era of rapid change, I believe technology should serve humanity
@@ -716,7 +736,8 @@ fn generate_home_page(output_dir: &Path) {
             </p>
             <p>
                 Both require us to think beyond immediate gains—to consider the seeds we plant today
-                and the forests they might become tomorrow.
+                and the forests they might become tomorrow. Like the wheel and bicycle, the best
+                technologies expand what's possible without demanding more than we can sustainably give.
             </p>
         </div>
 
