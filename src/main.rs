@@ -55,21 +55,24 @@ fn generate_css(output_dir: &Path) {
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500&display=swap');
 
 :root {
-    /* Nature-inspired palette */
+    /* Nature-inspired palette - WCAG AA compliant contrast ratios */
     --bg-primary: #f8f6f3;
     --bg-secondary: #efeae4;
     --bg-accent: #e8e0d5;
     --text-primary: #2c3e2d;
-    --text-secondary: #5a6b5c;
-    --text-muted: #8a9a8c;
-    --accent-primary: #4a7c59;
-    --accent-secondary: #7ba05b;
-    --accent-warm: #c4956a;
-    --accent-earth: #8b7355;
+    --text-secondary: #4a5c4b;  /* Darkened for better contrast - 4.5:1 ratio */
+    --text-muted: #5f6f60;      /* Darkened from #8a9a8c for WCAG AA */
+    --accent-primary: #3d6849;  /* Darkened for better contrast */
+    --accent-secondary: #5a7c45;
+    --accent-warm: #996b3d;     /* Darkened for better contrast */
+    --accent-earth: #6b5740;    /* Darkened for better contrast */
     --border-light: rgba(74, 124, 89, 0.15);
     --border-medium: rgba(74, 124, 89, 0.25);
     --shadow-soft: rgba(44, 62, 45, 0.08);
     --shadow-medium: rgba(44, 62, 45, 0.12);
+
+    /* Focus ring color */
+    --focus-ring: #2c5e3f;
 
     /* Spacing scale */
     --space-xs: 0.5rem;
@@ -93,8 +96,55 @@ fn generate_css(output_dir: &Path) {
     padding: 0;
 }
 
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 html {
     scroll-behavior: smooth;
+}
+
+/* Screen reader only utility - visually hidden but accessible */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Skip to content link - visible on focus for keyboard navigation */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: 0 0 8px 8px;
+    z-index: 1000;
+    text-decoration: none;
+    font-weight: 500;
+    transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
 }
 
 body {
@@ -191,9 +241,25 @@ nav a:hover::after {
     width: 100%;
 }
 
+/* Active page indicator for current navigation */
+nav a[aria-current="page"] {
+    color: var(--accent-primary);
+    font-weight: 500;
+}
+
+nav a[aria-current="page"]::after {
+    width: 100%;
+    background: var(--accent-primary);
+}
+
 /* Main content */
 main {
     min-height: 50vh;
+}
+
+/* Focus outline when skipping to main */
+main:focus {
+    outline: none;
 }
 
 /* Typography */
@@ -314,6 +380,9 @@ a:hover {
 .post-title:hover {
     color: var(--accent-primary);
     border-bottom: none;
+    text-decoration: underline;
+    text-decoration-color: var(--accent-primary);
+    text-underline-offset: 3px;
 }
 
 .post-description {
@@ -496,12 +565,45 @@ footer p {
     }
 }
 
-/* Focus states for accessibility */
+/* Ensure sufficient touch target size on mobile */
+@media (pointer: coarse) {
+    nav a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .post-list a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+}
+
+/* Focus states for accessibility - enhanced visibility */
 a:focus-visible,
-button:focus-visible {
-    outline: 2px solid var(--accent-primary);
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 3px solid var(--focus-ring);
     outline-offset: 2px;
     border-radius: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --text-secondary: #2c3e2d;
+        --text-muted: #3a4a3b;
+        --border-light: rgba(74, 124, 89, 0.4);
+        --border-medium: rgba(74, 124, 89, 0.6);
+    }
+
+    a:focus-visible,
+    button:focus-visible {
+        outline-width: 4px;
+    }
 }
 
 /* Selection styling */
@@ -519,6 +621,10 @@ button:focus-visible {
 
     header::after,
     footer::before {
+        display: none;
+    }
+
+    .skip-link {
         display: none;
     }
 }
@@ -585,87 +691,101 @@ fn parse_post(content: &str, path: &Path) -> Option<Post> {
     })
 }
 
-fn html_template(title: &str, content: &str) -> String {
+fn html_template(title: &str, content: &str, current_page: &str) -> String {
+    let home_aria = if current_page == "home" { r#" aria-current="page""# } else { "" };
+    let about_aria = if current_page == "about" { r#" aria-current="page""# } else { "" };
+    let blog_aria = if current_page == "blog" { r#" aria-current="page""# } else { "" };
+
     format!(
-        r#"<!DOCTYPE html>
+        r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Exploring the intersection of sustainability, AI safety, and our collective future.">
-    <title>{title} · Nature & Technology</title>
+    <meta name="theme-color" content="#4a7c59">
+    <title>{title} - Nature &amp; Technology</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="container">
-        <header>
-            <h1 class="site-title"><a href="index.html">Nature & Technology</a></h1>
+        <header role="banner">
+            <h1 class="site-title"><a href="index.html">Nature &amp; Technology</a></h1>
             <p class="site-tagline">Exploring sustainability and AI safety for a humane future</p>
-            <nav aria-label="Main navigation">
-                <a href="index.html">Home</a>
-                <a href="about.html">About</a>
-                <a href="blog.html">Writing</a>
+            <nav aria-label="Main navigation" role="navigation">
+                <a href="index.html"{home_aria}>Home</a>
+                <a href="about.html"{about_aria}>About</a>
+                <a href="blog.html"{blog_aria}>Writing</a>
             </nav>
         </header>
-        <main>
+        <main id="main-content" role="main" tabindex="-1">
 {content}
         </main>
-        <footer>
-            <div class="footer-nature">
+        <footer role="contentinfo">
+            <div class="footer-nature" aria-hidden="true">
                 <span class="leaf-icon">🌱</span>
                 <span class="leaf-icon">🍃</span>
                 <span class="leaf-icon">🌿</span>
             </div>
-            <p>Crafted with care using Rust · Designed for sustainability</p>
+            <p>Crafted with care using Rust - Designed for sustainability</p>
             <p>Growing ideas for a thriving planet and aligned AI</p>
         </footer>
     </div>
 </body>
-</html>"#
+</html>"##
     )
 }
 
-fn post_template(title: &str, content: &str) -> String {
+fn post_template(title: &str, description: &str, content: &str) -> String {
+    let meta_description = if description.is_empty() {
+        "Exploring the intersection of sustainability, AI safety, and our collective future."
+    } else {
+        description
+    };
+
     format!(
-        r#"<!DOCTYPE html>
+        r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Exploring the intersection of sustainability, AI safety, and our collective future.">
-    <title>{title} · Nature & Technology</title>
+    <meta name="description" content="{meta_description}">
+    <meta name="theme-color" content="#4a7c59">
+    <title>{title} - Nature &amp; Technology</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="container">
-        <header>
-            <h1 class="site-title"><a href="../index.html">Nature & Technology</a></h1>
+        <header role="banner">
+            <h1 class="site-title"><a href="../index.html">Nature &amp; Technology</a></h1>
             <p class="site-tagline">Exploring sustainability and AI safety for a humane future</p>
-            <nav aria-label="Main navigation">
+            <nav aria-label="Main navigation" role="navigation">
                 <a href="../index.html">Home</a>
                 <a href="../about.html">About</a>
                 <a href="../blog.html">Writing</a>
             </nav>
         </header>
-        <main>
-            <article>
+        <main id="main-content" role="main" tabindex="-1">
+            <article aria-labelledby="post-title">
 {content}
             </article>
         </main>
-        <footer>
-            <div class="footer-nature">
+        <footer role="contentinfo">
+            <div class="footer-nature" aria-hidden="true">
                 <span class="leaf-icon">🌱</span>
                 <span class="leaf-icon">🍃</span>
                 <span class="leaf-icon">🌿</span>
             </div>
-            <p>Crafted with care using Rust · Designed for sustainability</p>
+            <p>Crafted with care using Rust - Designed for sustainability</p>
             <p>Growing ideas for a thriving planet and aligned AI</p>
         </footer>
     </div>
 </body>
-</html>"#
+</html>"##
     )
 }
 
