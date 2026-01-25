@@ -352,6 +352,17 @@ article img {
     box-shadow: 0 4px 20px var(--shadow-soft);
 }
 
+.post-author {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-top: var(--space-xl);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--border-light);
+    text-align: right;
+}
+
 /* Blockquotes */
 blockquote {
     border-left: 3px solid var(--accent-warm);
@@ -662,7 +673,8 @@ fn generate_post_page(post: &Post, output_dir: &Path) {
     let content = format!(
         r#"            <h1>{}</h1>
             <p class="post-date">{}</p>
-            {}"#,
+            {}
+            <p class="post-author">Vincent Rizzo</p>"#,
         post.meta.title, post.meta.date, post.content_html
     );
 
