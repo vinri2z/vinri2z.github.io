@@ -765,7 +765,7 @@ fn generate_home_page(output_dir: &Path) {
 fn generate_about_page(output_dir: &Path) {
     let content = r#"        <h1>About Me</h1>
         <p class="intro">
-            I'm a researcher and writer nurturing ideas at the intersection of technology and our living world.
+            I'm Vincent Rizzo, a Machine Learning & Software engineer nurturing ideas at the intersection of technology and our living world.
         </p>
 
         <div class="about-section">
