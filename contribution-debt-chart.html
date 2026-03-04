@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis de Deuda de Contribuciones – Miembro 6</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    color: #333;
+    padding: 32px;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 0.88rem; margin-bottom: 6px; }
+  .method-note {
+    background: #eef4fb;
+    border-left: 4px solid #3498db;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.82rem;
+    color: #2c5f8a;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .chart-wrapper {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+  }
+  canvas { width: 100% !important; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: 0.83rem;
+  }
+  th, td { padding: 9px 13px; text-align: right; }
+  th { background: #2c3e50; color: #fff; font-weight: 600; }
+  th:first-child, td:first-child { text-align: center; font-weight: 600; }
+  tr:nth-child(even) { background: #f4f6f8; }
+  td.neg { color: #c0392b; }
+  td.pos { color: #27ae60; }
+  td.forgiven { color: #e67e22; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Análisis de Deuda de Contribuciones – Puerta 6</h1>
+  <p class="subtitle">Contribuciones esperadas vs. reales por año, con deuda acumulada a 5 años (asignación FIFO)</p>
+  <div class="method-note">
+    <strong>Método de cálculo de deuda:</strong> Los pagos del año Y se aplican primero a la <em>deuda más antigua pendiente</em> (FIFO).
+    La deuda con más de 5 años de antigüedad se condona al final de cada año.
+    Esto significa que un pago en 2023 cubre primero la deuda de 2018 antes de aplicarse al déficit del propio año 2023.
+  </div>
+
+  <div class="chart-wrapper">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th>Año</th>
+        <th>Esperado (€)</th>
+        <th>Pagado (€)</th>
+        <th>Diferencia anual (€)</th>
+        <th>Deuda condonada (€)</th>
+        <th>Deuda acumulada 5 años (€)</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+// ── Raw data ──
+const rawData = [
+  { year: 2017, expected: 302.35, actual:   0.00 },
+  { year: 2018, expected: 600.00, actual:  55.00 },
+  { year: 2019, expected: 600.00, actual: 600.00 },
+  { year: 2020, expected: 114.71, actual:   0.00 },
+  { year: 2021, expected:  70.59, actual:   0.00 },
+  { year: 2022, expected: 511.76, actual:   0.00 },
+  { year: 2023, expected: 600.00, actual: 200.00 },
+  { year: 2024, expected: 600.00, actual: 812.00 },
+  { year: 2025, expected: 600.00, actual:   0.00 },
+  { year: 2026, expected: 150.00, actual:   0.00 },
+];
+
+// ── FIFO debt computation ──
+// ledger: Map<year, remainingDebt>
+const ledger = new Map();
+const results = rawData.map(d => {
+  const { year, expected, actual } = d;
+
+  // 1. Add new debt for this year
+  ledger.set(year, expected);
+
+  // 2. Apply payment FIFO (oldest year first)
+  let remaining = actual;
+  for (const y of [...ledger.keys()].sort((a, b) => a - b)) {
+    if (remaining <= 0) break;
+    const paid = Math.min(remaining, ledger.get(y));
+    ledger.set(y, ledger.get(y) - paid);
+    remaining -= paid;
+  }
+
+  // 3. Forgive debts from year-5 and older
+  const expiryYear = year - 5;
+  let forgiven = 0;
+  for (const [y, debt] of ledger) {
+    if (y <= expiryYear) {
+      forgiven += debt;
+      ledger.set(y, 0);
+    }
+  }
+  // Prune zeroes
+  for (const [y, debt] of ledger) {
+    if (debt < 0.001) ledger.delete(y);
+  }
+
+  // 4. Rolling debt = sum of ledger
+  const rollingDebt = [...ledger.values()].reduce((a, b) => a + b, 0);
+
+  return { year, expected, actual, gap: expected - actual, forgiven, rollingDebt };
+});
+
+// ── Populate table ──
+const tbody = document.querySelector('#data-table tbody');
+results.forEach(r => {
+  const gapClass = r.gap > 0 ? 'neg' : r.gap < 0 ? 'pos' : '';
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${r.year}</td>
+    <td>${r.expected.toFixed(2)}</td>
+    <td>${r.actual.toFixed(2)}</td>
+    <td class="${gapClass}">${r.gap > 0 ? '+' : ''}${r.gap.toFixed(2)}</td>
+    <td class="${r.forgiven > 0 ? 'forgiven' : ''}">${r.forgiven > 0 ? r.forgiven.toFixed(2) : '—'}</td>
+    <td><strong>${r.rollingDebt.toFixed(2)}</strong></td>`;
+  tbody.appendChild(row);
+});
+
+// ── Chart ──
+const ctx = document.getElementById('chart').getContext('2d');
+new Chart(ctx, {
+  data: {
+    labels: results.map(r => r.year),
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Esperado (€)',
+        data: results.map(r => r.expected),
+        backgroundColor: 'rgba(52, 152, 219, 0.65)',
+        borderColor: 'rgba(52, 152, 219, 1)',
+        borderWidth: 1,
+        borderRadius: 4,
+        order: 2,
+      },
+      {
+        type: 'bar',
+        label: 'Pagado (€)',
+        data: results.map(r => r.actual),
+        backgroundColor: 'rgba(46, 204, 113, 0.65)',
+        borderColor: 'rgba(46, 204, 113, 1)',
+        borderWidth: 1,
+        borderRadius: 4,
+        order: 3,
+      },
+      {
+        type: 'line',
+        label: 'Deuda acumulada 5 años (€) — FIFO',
+        data: results.map(r => r.rollingDebt),
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231, 76, 60, 0.08)',
+        borderWidth: 3,
+        pointRadius: 6,
+        pointBackgroundColor: '#e74c3c',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        yAxisID: 'y1',
+        order: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { usePointStyle: true, padding: 18, font: { size: 12 } }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        title: { display: true, text: 'Importe anual (€)' },
+        beginAtZero: true,
+        grid: { color: 'rgba(0,0,0,0.06)' },
+      },
+      y1: {
+        position: 'right',
+        title: { display: true, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
+        ticks: { color: '#e74c3c' },
+        beginAtZero: true,
+        grid: { drawOnChartArea: false },
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

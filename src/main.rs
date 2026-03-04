@@ -43,11 +43,25 @@ fn main() {
     // Generate about page
     generate_about_page(output_dir);
 
+    // Copy static content (standalone HTML pages)
+    copy_static_content(output_dir);
+
     println!("✓ Site generated successfully in 'output/' directory");
     println!("  - index.html (home)");
     println!("  - about.html");
     println!("  - blog.html");
     println!("  - posts/*.html");
+    println!("  - contribution-debt-chart.html");
+}
+
+fn copy_static_content(output_dir: &Path) {
+    let static_files = ["contribution-debt-chart.html"];
+    for file in static_files {
+        let src = Path::new(file);
+        if src.exists() {
+            fs::copy(src, output_dir.join(file)).expect(&format!("Failed to copy {}", file));
+        }
+    }
 }
 
 fn generate_css(output_dir: &Path) {
@@ -798,7 +812,8 @@ fn generate_post_page(post: &Post, output_dir: &Path) {
         post.meta.title, post.meta.date, post.content_html
     );
 
-    let html = post_template(&post.meta.title, &content);
+    let desc = post.meta.description.as_deref().unwrap_or("");
+    let html = post_template(&post.meta.title, desc, &content);
     let path = output_dir.join("posts").join(format!("{}.html", post.slug));
     fs::write(path, html).expect("Failed to write post");
 }
@@ -827,7 +842,7 @@ fn generate_blog_index(posts: &[Post], output_dir: &Path) {
 
     list.push_str("        </ul>");
 
-    let html = html_template("Writing", &list);
+    let html = html_template("Writing", &list, "blog");
     fs::write(output_dir.join("blog.html"), html).expect("Failed to write blog index");
 }
 
@@ -878,7 +893,7 @@ fn generate_home_page(output_dir: &Path) {
             or learn more <a href="about.html">about my journey</a>.
         </p>"#;
 
-    let html = html_template("Home", content);
+    let html = html_template("Home", content, "home");
     fs::write(output_dir.join("index.html"), html).expect("Failed to write home page");
 }
 
@@ -926,6 +941,6 @@ fn generate_about_page(output_dir: &Path) {
             </p>
         </div>"#;
 
-    let html = html_template("About", content);
+    let html = html_template("About", content, "about");
     fs::write(output_dir.join("about.html"), html).expect("Failed to write about page");
 }
