@@ -55,12 +55,22 @@ fn main() {
 }
 
 fn copy_static_content(output_dir: &Path) {
-    let static_files = ["contribution-debt-chart.html"];
-    for file in static_files {
-        let src = Path::new(file);
-        if src.exists() {
-            fs::copy(src, output_dir.join(file)).expect(&format!("Failed to copy {}", file));
+    let static_dir = Path::new("static");
+    if !static_dir.exists() {
+        return;
+    }
+    for entry in WalkDir::new(static_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let src = entry.path();
+        let rel_path = src.strip_prefix(static_dir).expect("entry under static dir");
+        let dest = output_dir.join(rel_path);
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent).expect("Failed to create output subdir");
         }
+        fs::copy(src, &dest).expect(&format!("Failed to copy {}", rel_path.display()));
     }
 }
 

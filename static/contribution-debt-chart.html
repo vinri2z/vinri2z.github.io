@@ -90,7 +90,7 @@ const rawData = [
   { year: 2019, expected: 600.00, actual: 600.00 },
   { year: 2020, expected: 114.71, actual:   0.00 },
   { year: 2021, expected:  70.59, actual:   0.00 },
-  { year: 2022, expected: 511.76, actual:   0.00 },
+  { year: 2022, expected: 559.06, actual:   0.00 },
   { year: 2023, expected: 600.00, actual: 200.00 },
   { year: 2024, expected: 600.00, actual: 812.00 },
   { year: 2025, expected: 600.00, actual:   0.00 },
@@ -169,7 +169,7 @@ new Chart(ctx, {
       {
         type: 'bar',
         label: 'Pagado (€)',
-        data: results.map(r => r.actual),
+        data: results.map(r => -r.actual),
         backgroundColor: 'rgba(46, 204, 113, 0.65)',
         borderColor: 'rgba(46, 204, 113, 1)',
         borderWidth: 1,
@@ -204,24 +204,43 @@ new Chart(ctx, {
       },
       tooltip: {
         callbacks: {
-          label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
+          label: ctx => `${ctx.dataset.label}: €${Math.abs(ctx.parsed.y).toFixed(2)}`
         }
       }
     },
     scales: {
       x: { grid: { display: false } },
-      y: {
-        title: { display: true, text: 'Importe anual (€)' },
-        beginAtZero: true,
-        grid: { color: 'rgba(0,0,0,0.06)' },
-      },
-      y1: {
-        position: 'right',
-        title: { display: true, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
-        ticks: { color: '#e74c3c' },
-        beginAtZero: true,
-        grid: { drawOnChartArea: false },
-      }
+      y: (() => {
+        // Compute symmetric range so zero aligns with y1 zero
+        const yMax = Math.max(...results.map(r => r.expected)) * 1.15;
+        const yMin = -Math.max(...results.map(r => r.actual)) * 1.15;
+        return {
+          min: yMin,
+          max: yMax,
+          title: { display: true, text: 'Importe anual (€)' },
+          grid: { color: 'rgba(0,0,0,0.06)' },
+          ticks: { callback: val => `€${Math.abs(val)}` }
+        };
+      })(),
+      y1: (() => {
+        // Pin y1's zero to the same fractional position as y's zero
+        const yMax = Math.max(...results.map(r => r.expected)) * 1.15;
+        const yMin = -Math.max(...results.map(r => r.actual)) * 1.15;
+        const r = (yMax) / (yMax - yMin);          // fraction from bottom where zero sits
+        const y1Max = Math.max(...results.map(d => d.rollingDebt)) * 1.15;
+        const y1Min = -(r / (1 - r)) * y1Max;       // negative phantom space below zero
+        return {
+          position: 'right',
+          min: y1Min,
+          max: y1Max,
+          title: { display: true, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
+          ticks: {
+            color: '#e74c3c',
+            callback: val => val >= 0 ? `€${val.toFixed(0)}` : ''  // hide phantom negatives
+          },
+          grid: { drawOnChartArea: false },
+        };
+      })(),
     }
   }
 });
