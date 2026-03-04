@@ -14,14 +14,14 @@
     padding: 32px;
   }
   .container { max-width: 1000px; margin: 0 auto; width: 100%; }
-  h1 { font-size: 1.5rem; margin-bottom: 4px; }
-  .subtitle { color: #666; font-size: 0.88rem; margin-bottom: 6px; }
+  h1 { font-size: clamp(1.05rem, 3.5vw, 1.5rem); margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: clamp(0.75rem, 2vw, 0.88rem); margin-bottom: 6px; }
   .method-note {
     background: #eef4fb;
     border-left: 4px solid #3498db;
     padding: 10px 14px;
     border-radius: 0 6px 6px 0;
-    font-size: 0.82rem;
+    font-size: clamp(0.72rem, 1.8vw, 0.82rem);
     color: #2c5f8a;
     margin-bottom: 24px;
     line-height: 1.5;
@@ -47,9 +47,9 @@
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    font-size: 0.83rem;
+    font-size: clamp(0.72rem, 1.8vw, 0.83rem);
   }
-  th, td { padding: 9px 13px; text-align: right; }
+  th, td { padding: clamp(6px, 1.5vw, 9px) clamp(8px, 2vw, 13px); text-align: right; }
   th { background: #2c3e50; color: #fff; font-weight: 600; }
   th:first-child, td:first-child { text-align: center; font-weight: 600; }
   tr:nth-child(even) { background: #f4f6f8; }
@@ -58,9 +58,7 @@
   td.forgiven { color: #e67e22; font-style: italic; }
 
   @media (max-width: 600px) {
-    body { padding: 12px; }
-    h1 { font-size: 1.15rem; }
-    .method-note { font-size: 0.78rem; }
+    body { padding: clamp(8px, 3vw, 16px); }
     .chart-wrapper { padding: 10px 6px; min-height: 260px; }
   }
 </style>
@@ -74,6 +72,7 @@
     La deuda con más de 5 años de antigüedad se condona al final de cada año.
     Esto significa que un pago en 2023 cubre primero la deuda de 2018 antes de aplicarse al déficit del propio año 2023.
   </div>
+
   <div class="chart-scroll">
     <div class="chart-wrapper">
       <canvas id="chart"></canvas>
@@ -165,9 +164,43 @@ results.forEach(r => {
   tbody.appendChild(row);
 });
 
+// ── Axis range helpers (zero-aligned) ──
+const yMax = Math.max(...results.map(r => Math.max(r.expected, r.actual))) * 1.15;
+const yMin = 0;
+const y1Max = Math.max(...results.map(d => d.rollingDebt)) * 1.15;
+const y1Min = 0;
+
+// ── Responsive font helper ──
+// Maps chart pixel width → a comfortable font size
+function fs(w) { return Math.round(Math.max(9, Math.min(13, w / 52))); }
+
+// ── Apply responsive options to a live chart ──
+function applyResponsive(chart, w) {
+  const f = fs(w);
+  const small = w < 560;
+  // Legend
+  chart.options.plugins.legend.position = small ? 'bottom' : 'top';
+  chart.options.plugins.legend.labels.font = { size: f };
+  chart.options.plugins.legend.labels.padding = small ? 10 : 18;
+  chart.options.plugins.legend.labels.boxWidth = small ? 10 : 14;
+  // Axes
+  chart.options.scales.x.ticks.font = { size: f };
+  chart.options.scales.y.ticks.font = { size: f };
+  chart.options.scales.y.title.display = !small;
+  chart.options.scales.y1.ticks.font = { size: f };
+  chart.options.scales.y1.title.display = !small;
+  // Bar width — proportional to available space per category
+  const barThickness = Math.max(8, Math.min(36, (w - 80) / results.length / 2.2));
+  chart.data.datasets[0].maxBarThickness = barThickness;
+  chart.data.datasets[1].maxBarThickness = barThickness;
+  // Point radius
+  chart.data.datasets[2].pointRadius = small ? 3 : 5;
+  chart.update('none');
+}
+
 // ── Chart ──
 const ctx = document.getElementById('chart').getContext('2d');
-new Chart(ctx, {
+const chart = new Chart(ctx, {
   data: {
     labels: results.map(r => r.year),
     datasets: [
@@ -184,7 +217,7 @@ new Chart(ctx, {
       {
         type: 'bar',
         label: 'Pagado (€)',
-        data: results.map(r => -r.actual),
+        data: results.map(r => r.actual),
         backgroundColor: 'rgba(46, 204, 113, 0.65)',
         borderColor: 'rgba(46, 204, 113, 1)',
         borderWidth: 1,
@@ -198,7 +231,7 @@ new Chart(ctx, {
         borderColor: '#e74c3c',
         backgroundColor: 'rgba(231, 76, 60, 0.08)',
         borderWidth: 3,
-        pointRadius: window.innerWidth < 600 ? 3 : 6,
+        pointRadius: 5,
         pointBackgroundColor: '#e74c3c',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
@@ -211,67 +244,49 @@ new Chart(ctx, {
   },
   options: {
     responsive: true,
-    grouped: false,
+    maintainAspectRatio: true,
+    grouped: true,
     interaction: { mode: 'index', intersect: false },
+    onResize(chart, size) { applyResponsive(chart, size.width); },
     plugins: {
       legend: {
-        position: window.innerWidth < 600 ? 'bottom' : 'top',
-        labels: {
-          usePointStyle: true,
-          padding: window.innerWidth < 600 ? 10 : 18,
-          font: { size: window.innerWidth < 600 ? 10 : 12 },
-          boxWidth: window.innerWidth < 600 ? 10 : 14,
-        }
+        position: 'top',
+        labels: { usePointStyle: true, padding: 18, font: { size: 12 }, boxWidth: 14 }
       },
       tooltip: {
         callbacks: {
-          label: ctx => `${ctx.dataset.label}: €${Math.abs(ctx.parsed.y).toFixed(2)}`
+          label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
         }
       }
     },
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { size: window.innerWidth < 600 ? 9 : 12 } }
+        ticks: { font: { size: 12 } }
       },
-      y: (() => {
-        // Compute symmetric range so zero aligns with y1 zero
-        const yMax = Math.max(...results.map(r => r.expected)) * 1.15;
-        const yMin = -Math.max(...results.map(r => r.actual)) * 1.15;
-        return {
-          min: yMin,
-          max: yMax,
-          title: { display: window.innerWidth >= 600, text: 'Importe anual (€)' },
-          grid: { color: 'rgba(0,0,0,0.06)' },
-          ticks: {
-            font: { size: window.innerWidth < 600 ? 9 : 12 },
-            callback: val => `€${Math.abs(val)}`
-          }
-        };
-      })(),
-      y1: (() => {
-        // Pin y1's zero to the same fractional position as y's zero
-        const yMax = Math.max(...results.map(r => r.expected)) * 1.15;
-        const yMin = -Math.max(...results.map(r => r.actual)) * 1.15;
-        const r = (-yMin) / (yMax - yMin);          // fraction from bottom where zero sits
-        const y1Max = Math.max(...results.map(d => d.rollingDebt)) * 1.15;
-        const y1Min = -(r / (1 - r)) * y1Max;       // negative phantom space below zero
-        return {
-          position: 'right',
-          min: y1Min,
-          max: y1Max,
-          title: { display: window.innerWidth >= 600, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
-          ticks: {
-            color: '#e74c3c',
-            font: { size: window.innerWidth < 600 ? 9 : 12 },
-            callback: val => val >= 0 ? `€${val.toFixed(0)}` : ''  // hide phantom negatives
-          },
-          grid: { drawOnChartArea: false },
-        };
-      })(),
+      y: {
+        min: yMin, max: yMax,
+        title: { display: true, text: 'Importe anual (€)' },
+        grid: { color: 'rgba(0,0,0,0.06)' },
+        ticks: { font: { size: 12 }, callback: val => `€${val}` }
+      },
+      y1: {
+        position: 'right',
+        min: y1Min, max: y1Max,
+        title: { display: true, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
+        ticks: {
+          color: '#e74c3c',
+          font: { size: 12 },
+          callback: val => `€${val.toFixed(0)}`
+        },
+        grid: { drawOnChartArea: false },
+      }
     }
   }
 });
+
+// Apply on first paint using actual rendered width
+applyResponsive(chart, chart.width);
 </script>
 </body>
 </html>
