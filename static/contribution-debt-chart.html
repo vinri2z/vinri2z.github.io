@@ -13,7 +13,7 @@
     color: #333;
     padding: 32px;
   }
-  .container { max-width: 1000px; margin: 0 auto; }
+  .container { max-width: 1000px; margin: 0 auto; width: 100%; }
   h1 { font-size: 1.5rem; margin-bottom: 4px; }
   .subtitle { color: #666; font-size: 0.88rem; margin-bottom: 6px; }
   .method-note {
@@ -26,17 +26,22 @@
     margin-bottom: 24px;
     line-height: 1.5;
   }
+  .chart-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 24px; }
   .chart-wrapper {
     background: #fff;
     border-radius: 12px;
     padding: 24px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    margin-bottom: 24px;
+    min-width: 520px;
+    min-height: 320px;
   }
-  canvas { width: 100% !important; }
+  canvas { width: 100% !important; display: block; }
 
+  /* Scrollable table on small screens */
+  .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
     width: 100%;
+    min-width: 520px;
     border-collapse: collapse;
     background: #fff;
     border-radius: 12px;
@@ -51,6 +56,13 @@
   td.neg { color: #c0392b; }
   td.pos { color: #27ae60; }
   td.forgiven { color: #e67e22; font-style: italic; }
+
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    h1 { font-size: 1.15rem; }
+    .method-note { font-size: 0.78rem; }
+    .chart-wrapper { padding: 10px 6px; min-height: 260px; }
+  }
 </style>
 </head>
 <body>
@@ -63,10 +75,13 @@
     Esto significa que un pago en 2023 cubre primero la deuda de 2018 antes de aplicarse al déficit del propio año 2023.
   </div>
 
-  <div class="chart-wrapper">
-    <canvas id="chart"></canvas>
+  <div class="chart-scroll">
+    <div class="chart-wrapper">
+      <canvas id="chart"></canvas>
+    </div>
   </div>
 
+  <div class="table-scroll">
   <table id="data-table">
     <thead>
       <tr>
@@ -80,6 +95,7 @@
     </thead>
     <tbody></tbody>
   </table>
+  </div>
 </div>
 
 <script>
@@ -183,7 +199,7 @@ new Chart(ctx, {
         borderColor: '#e74c3c',
         backgroundColor: 'rgba(231, 76, 60, 0.08)',
         borderWidth: 3,
-        pointRadius: 6,
+        pointRadius: window.innerWidth < 600 ? 3 : 6,
         pointBackgroundColor: '#e74c3c',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
@@ -200,8 +216,13 @@ new Chart(ctx, {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
-        position: 'top',
-        labels: { usePointStyle: true, padding: 18, font: { size: 12 } }
+        position: window.innerWidth < 600 ? 'bottom' : 'top',
+        labels: {
+          usePointStyle: true,
+          padding: window.innerWidth < 600 ? 10 : 18,
+          font: { size: window.innerWidth < 600 ? 10 : 12 },
+          boxWidth: window.innerWidth < 600 ? 10 : 14,
+        }
       },
       tooltip: {
         callbacks: {
@@ -210,7 +231,10 @@ new Chart(ctx, {
       }
     },
     scales: {
-      x: { grid: { display: false } },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: window.innerWidth < 600 ? 9 : 12 } }
+      },
       y: (() => {
         // Compute symmetric range so zero aligns with y1 zero
         const yMax = Math.max(...results.map(r => r.expected)) * 1.15;
@@ -218,9 +242,12 @@ new Chart(ctx, {
         return {
           min: yMin,
           max: yMax,
-          title: { display: true, text: 'Importe anual (€)' },
+          title: { display: window.innerWidth >= 600, text: 'Importe anual (€)' },
           grid: { color: 'rgba(0,0,0,0.06)' },
-          ticks: { callback: val => `€${Math.abs(val)}` }
+          ticks: {
+            font: { size: window.innerWidth < 600 ? 9 : 12 },
+            callback: val => `€${Math.abs(val)}`
+          }
         };
       })(),
       y1: (() => {
@@ -234,9 +261,10 @@ new Chart(ctx, {
           position: 'right',
           min: y1Min,
           max: y1Max,
-          title: { display: true, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
+          title: { display: window.innerWidth >= 600, text: 'Deuda acumulada 5 años (€)', color: '#e74c3c' },
           ticks: {
             color: '#e74c3c',
+            font: { size: window.innerWidth < 600 ? 9 : 12 },
             callback: val => val >= 0 ? `€${val.toFixed(0)}` : ''  // hide phantom negatives
           },
           grid: { drawOnChartArea: false },
