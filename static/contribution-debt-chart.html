@@ -226,7 +226,7 @@ new Chart(ctx, {
         // Pin y1's zero to the same fractional position as y's zero
         const yMax = Math.max(...results.map(r => r.expected)) * 1.15;
         const yMin = -Math.max(...results.map(r => r.actual)) * 1.15;
-        const r = (yMax) / (yMax - yMin);          // fraction from bottom where zero sits
+        const r = (-yMin) / (yMax - yMin);          // fraction from bottom where zero sits
         const y1Max = Math.max(...results.map(d => d.rollingDebt)) * 1.15;
         const y1Min = -(r / (1 - r)) * y1Max;       // negative phantom space below zero
         return {
