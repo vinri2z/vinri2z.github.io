@@ -57,6 +57,40 @@
   td.pos { color: #27ae60; }
   td.forgiven { color: #e67e22; font-style: italic; }
 
+  /* Tooltips on expected column */
+  td.has-tooltip {
+    position: relative;
+    cursor: help;
+    text-decoration: underline dotted #3498db;
+    text-underline-offset: 3px;
+  }
+  td.has-tooltip::after {
+    content: attr(data-tooltip);
+    position: fixed;
+    background: #2c3e50;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-style: normal;
+    font-weight: 400;
+    white-space: pre-line;
+    max-width: min(320px, 90vw);
+    width: max-content;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    line-height: 1.45;
+    /* positioned via JS */
+    top: var(--tip-y, 0px);
+    left: var(--tip-x, 0px);
+  }
+  td.has-tooltip:hover::after {
+    opacity: 1;
+  }
+
   @media (max-width: 600px) {
     body { padding: clamp(8px, 3vw, 16px); }
     .chart-wrapper { padding: 10px 6px; min-height: 260px; }
@@ -149,14 +183,30 @@ const results = rawData.map(d => {
   return { year, expected, actual, gap: expected - actual, forgiven, rollingDebt };
 });
 
+// ── Tooltip justifications for expected contributions ──
+const tooltips = {
+  2017: '↗ Comunidad: 418.80€ ÷ 8 = 52.35€  +  5 meses × 50€/mes = 250€',
+  2018: '↗ 50€/mes × 12 meses — fondo de reserva',
+  2019: '↗ 50€/mes × 12 meses — fondo de reserva',
+  2020: '↗ Comunidad: 517.68€ ÷ 8 = 64.71€  +  1 mes × 50€/mes\n⚠ COVID: fondo de reserva suspendido — nadie contribuía',
+  2021: '↗ Comunidad: 564.72€ ÷ 8 = 70.59€  (sin cuota mensual)\n⚠ COVID: fondo de reserva suspendido — nadie contribuía',
+  2022: '↗ Comunidad: 472.48€ ÷ 8 = 59.06€  +  10 meses × 50€/mes = 500€\n⚠ COVID: fondo de reserva reanudado progresivamente',
+  2023: '↗ 50€/mes × 12 meses — fondo de reserva',
+  2024: '↗ 50€/mes × 12 meses — fondo de reserva',
+  2025: '↗ 50€/mes × 12 meses — fondo de reserva',
+  2026: '↗ 3 meses × 50€/mes (enero–marzo)',
+};
+
 // ── Populate table ──
 const tbody = document.querySelector('#data-table tbody');
 results.forEach(r => {
   const gapClass = r.gap > 0 ? 'neg' : r.gap < 0 ? 'pos' : '';
+  const tip = tooltips[r.year] || '';
+  const tipAttr = tip ? ` class="has-tooltip" data-tooltip="${tip.replace(/\n/g, '&#10;')}"` : '';
   const row = document.createElement('tr');
   row.innerHTML = `
     <td>${r.year}</td>
-    <td>${r.expected.toFixed(2)}</td>
+    <td${tipAttr}>${r.expected.toFixed(2)}</td>
     <td>${r.actual.toFixed(2)}</td>
     <td class="${gapClass}">${r.gap > 0 ? '+' : ''}${r.gap.toFixed(2)}</td>
     <td class="${r.forgiven > 0 ? 'forgiven' : ''}">${r.forgiven > 0 ? r.forgiven.toFixed(2) : '—'}</td>
@@ -287,6 +337,26 @@ const chart = new Chart(ctx, {
 
 // Apply on first paint using actual rendered width
 applyResponsive(chart, chart.width);
+
+// ── Smart tooltip positioning ──
+// Uses fixed positioning + mousemove so the tooltip never clips at the viewport edge
+document.querySelectorAll('td.has-tooltip').forEach(td => {
+  const pseudo = window.getComputedStyle(td, '::after');
+  td.addEventListener('mouseenter', () => {});  // trigger repaint
+  td.addEventListener('mousemove', e => {
+    const GAP = 12;
+    const TIP_W = 320;
+    const TIP_H = 60; // rough estimate — enough to avoid flicker
+    let x = e.clientX - TIP_W / 2;
+    let y = e.clientY - TIP_H - GAP;
+    // Clamp horizontally
+    x = Math.max(8, Math.min(x, window.innerWidth - TIP_W - 8));
+    // If too close to top, flip below cursor
+    if (y < 8) y = e.clientY + GAP;
+    td.style.setProperty('--tip-x', x + 'px');
+    td.style.setProperty('--tip-y', y + 'px');
+  });
+});
 </script>
 </body>
 </html>
