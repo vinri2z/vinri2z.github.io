@@ -183,6 +183,9 @@ const results = rawData.map(d => {
   return { year, expected, actual, gap: expected - actual, forgiven, rollingDebt };
 });
 
+// ── Tooltip flag: only active when ?tooltips=1 is in the URL ──
+const tooltipsEnabled = new URLSearchParams(window.location.search).get('tooltips') === '1';
+
 // ── Tooltip justifications for expected contributions ──
 const tooltips = {
   2017: '↗ Seguro finca: 418.80€ ÷ 8 = 52.35€  +  5 meses × 50€/mes = 250€',
@@ -202,7 +205,7 @@ const tbody = document.querySelector('#data-table tbody');
 results.forEach(r => {
   const gapClass = r.gap > 0 ? 'neg' : r.gap < 0 ? 'pos' : '';
   const tip = tooltips[r.year] || '';
-  const tipAttr = tip ? ` class="has-tooltip" data-tooltip="${tip.replace(/\n/g, '&#10;')}"` : '';
+  const tipAttr = (tooltipsEnabled && tip) ? ` class="has-tooltip" data-tooltip="${tip.replace(/\n/g, '&#10;')}"` : '';
   const row = document.createElement('tr');
   row.innerHTML = `
     <td>${r.year}</td>
