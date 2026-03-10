@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deuda comparada — todas las puertas (2017–2026)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fa;
+    color: #333;
+    padding: 32px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; width: 100%; }
+  h1 { font-size: clamp(1.05rem, 3.5vw, 1.5rem); margin-bottom: 4px; }
+  h2 { font-size: clamp(0.9rem, 2.5vw, 1.1rem); margin: 28px 0 10px; color: #2c3e50; }
+  .subtitle { color: #666; font-size: clamp(0.75rem, 2vw, 0.88rem); margin-bottom: 6px; }
+  .method-note {
+    background: #eef4fb;
+    border-left: 4px solid #3498db;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: clamp(0.72rem, 1.8vw, 0.82rem);
+    color: #2c5f8a;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .chart-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 24px; }
+  .chart-wrapper {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    min-width: 520px;
+    min-height: 340px;
+  }
+  canvas { width: 100% !important; display: block; }
+
+  .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 24px; }
+  table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    font-size: clamp(0.68rem, 1.6vw, 0.80rem);
+  }
+  th, td { padding: clamp(5px, 1.2vw, 8px) clamp(6px, 1.5vw, 11px); text-align: right; white-space: nowrap; }
+  th { background: #2c3e50; color: #fff; font-weight: 600; }
+  th.year-col, td.year-col { text-align: center; font-weight: 600; background: #ecf0f1; }
+  th.exp-col { background: #34495e; }
+  td.exp-col { background: #f9f9f9; color: #555; }
+  tr:nth-child(even) td:not(.year-col):not(.exp-col) { background: #f4f6f8; }
+  td.neg  { color: #c0392b; font-weight: 600; }
+  td.zero { color: #bbb; }
+  td.pos  { color: #27ae60; font-weight: 600; }
+  td.bold { font-weight: 700; }
+  tfoot td { background: #2c3e50 !important; color: #fff; font-weight: 700; }
+  tfoot td.year-col { background: #2c3e50 !important; color: #fff; }
+
+  /* Coloured header pills per member */
+  .pill {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    margin-left: 3px;
+  }
+
+  /* Summary cards */
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    padding: 12px 16px;
+    min-width: 130px;
+    flex: 1 1 130px;
+    border-top: 4px solid var(--c);
+  }
+  .card .label { font-size: 0.72rem; color: #888; margin-bottom: 2px; }
+  .card .debt  { font-size: 1.1rem; font-weight: 700; color: var(--c); }
+  .card .total { font-size: 0.78rem; color: #555; margin-top: 2px; }
+
+  @media (max-width: 600px) {
+    body { padding: clamp(8px, 3vw, 16px); }
+    .chart-wrapper { padding: 10px 6px; min-height: 280px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Deuda comparada — todas las puertas (2017–2026)</h1>
+  <p class="subtitle">Deuda acumulada a 5 años (FIFO) y pagos por puerta — visión consolidada</p>
+  <div class="method-note">
+    <strong>Método:</strong> Cada puerta se calcula de forma independiente con asignación FIFO.
+    Los pagos de cada año se aplican primero a la <em>deuda más antigua pendiente</em>.
+    La deuda con más de 5 años de antigüedad se condona al cierre de cada año.
+    La base de contribución esperada es la misma para todas las puertas.
+    <br><strong>P2–3–4</strong> actúan como una única unidad pagadora agrupada.
+    <strong>2026</strong>: año en curso (datos hasta marzo).
+  </div>
+
+  <!-- ── Summary cards ── -->
+  <div class="cards" id="summary-cards"></div>
+
+  <!-- ── Chart ── -->
+  <div class="chart-scroll">
+    <div class="chart-wrapper">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Payments table ── -->
+  <h2>Pagos anuales por puerta (€)</h2>
+  <div class="table-scroll">
+    <table id="pay-table">
+      <thead>
+        <tr>
+          <th class="year-col">Año</th>
+          <th class="exp-col">Esperado</th>
+          <th id="h-p1"></th>
+          <th id="h-p234"></th>
+          <th id="h-p5"></th>
+          <th id="h-p6"></th>
+          <th id="h-p7"></th>
+          <th id="h-p8"></th>
+          <th>Total pagado</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot><tr id="pay-total-row"></tr></tfoot>
+    </table>
+  </div>
+
+  <!-- ── Rolling debt table ── -->
+  <h2>Deuda acumulada 5 años — FIFO (€)</h2>
+  <div class="table-scroll">
+    <table id="debt-table">
+      <thead>
+        <tr>
+          <th class="year-col">Año</th>
+          <th id="d-p1"></th>
+          <th id="d-p234"></th>
+          <th id="d-p5"></th>
+          <th id="d-p6"></th>
+          <th id="d-p7"></th>
+          <th id="d-p8"></th>
+          <th>Σ Deuda total</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot><tr id="debt-total-row"></tr></tfoot>
+    </table>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────
+const YEARS = [2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
+
+// Expected contribution — same for every door
+const EXPECTED = [302.35, 600, 600, 114.71, 70.59, 511.76, 600, 600, 600, 150];
+
+// Members: label | colour | payments per year (aligned to YEARS)
+// 2026 note: P6 and P7 haven't paid yet; P1 and P5 paid advance (€300); P234, P7, P8 paid €150
+const MEMBERS = [
+  { id:'P1',    label:'Puerta 1',    color:'#2980b9',
+    paid:[100, 550,    900, 60,    100, 250, 900,    300,    600,    300] },
+  { id:'P234',  label:'Puertas 2–4', color:'#8e44ad',
+    paid:[190, 538.33, 600, 93.33, 100, 350, 700,    400,    900,    150] },
+  { id:'P5',    label:'Puerta 5',    color:'#27ae60',
+    paid:[230, 579,    800, 60,    100, 350, 800,    300,    900,    300] },
+  { id:'P6',    label:'Puerta 6',    color:'#e74c3c',
+    paid:[0,   55,     600, 0,     0,   0,   200,    812,    0,      0  ] },
+  { id:'P7',    label:'Puerta 7',    color:'#e67e22',
+    paid:[230, 539,    680, 60,    100, 600, 650,    450,    750,    0  ] },
+  { id:'P8',    label:'Puerta 8',    color:'#16a085',
+    paid:[190, 539,    750, 60,    100, 500, 596.94, 683.43, 611.57, 150] },
+];
+
+// ── FIFO computation (independent per member) ─────────────────────────
+function computeFIFO(paidArr) {
+  const ledger = new Map();
+  return YEARS.map((year, i) => {
+    const expected = EXPECTED[i];
+    const actual   = paidArr[i];
+
+    ledger.set(year, expected);
+
+    let rem = actual;
+    for (const y of [...ledger.keys()].sort((a,b)=>a-b)) {
+      if (rem <= 0) break;
+      const p = Math.min(rem, ledger.get(y));
+      ledger.set(y, ledger.get(y) - p);
+      rem -= p;
+    }
+
+    const expiry = year - 5;
+    let forgiven = 0;
+    for (const [y, d] of ledger) {
+      if (y <= expiry) { forgiven += d; ledger.set(y, 0); }
+    }
+    for (const [y, d] of ledger) { if (d < 0.001) ledger.delete(y); }
+
+    const rollingDebt = [...ledger.values()].reduce((a,b)=>a+b, 0);
+    return { year, expected, actual, gap: expected - actual, forgiven, rollingDebt };
+  });
+}
+
+// Compute results for all members
+const results = MEMBERS.map(m => ({ ...m, rows: computeFIFO(m.paid) }));
+
+// ── Summary cards ─────────────────────────────────────────────────────
+const cardsEl = document.getElementById('summary-cards');
+results.forEach(m => {
+  const totalPaid = m.rows.reduce((s,r)=>s+r.actual, 0);
+  const debt = m.rows[m.rows.length-1].rollingDebt;
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.setProperty('--c', m.color);
+  card.innerHTML = `
+    <div class="label">${m.label}</div>
+    <div class="debt">€${debt.toFixed(2)}</div>
+    <div class="total">Total pagado: €${totalPaid.toFixed(2)}</div>`;
+  cardsEl.appendChild(card);
+});
+
+// ── Table headers with coloured pills ─────────────────────────────────
+results.forEach((m, i) => {
+  const pill = `<span class="pill" style="background:${m.color}">${m.id}</span>`;
+  document.getElementById(`h-p${['1','234','5','6','7','8'][i]}`).innerHTML = `Pagado ${pill}`;
+  document.getElementById(`d-p${['1','234','5','6','7','8'][i]}`).innerHTML = `Deuda ${pill}`;
+});
+
+// ── Payment table ─────────────────────────────────────────────────────
+const payTbody = document.querySelector('#pay-table tbody');
+YEARS.forEach((year, yi) => {
+  const tr = document.createElement('tr');
+  const totalPaid = results.reduce((s,m)=>s+m.rows[yi].actual, 0);
+  const totalExp  = EXPECTED[yi] * results.length; // 6 units
+  let cells = `<td class="year-col">${year}</td><td class="exp-col">€${EXPECTED[yi].toFixed(2)}</td>`;
+  results.forEach(m => {
+    const v = m.rows[yi].actual;
+    const g = m.rows[yi].gap;
+    const cls = v === 0 ? 'zero' : g > 0 ? '' : 'pos';
+    cells += `<td class="${cls}">${v > 0 ? '€'+v.toFixed(2) : '—'}</td>`;
+  });
+  cells += `<td class="bold">€${totalPaid.toFixed(2)}</td>`;
+  tr.innerHTML = cells;
+  payTbody.appendChild(tr);
+});
+
+// Payment totals footer
+const payTotalRow = document.getElementById('pay-total-row');
+const grandTotalPaid = results.reduce((s,m)=>s+m.rows.reduce((a,r)=>a+r.actual,0),0);
+let payFoot = `<td class="year-col">Total</td><td>—</td>`;
+results.forEach(m => {
+  const tot = m.rows.reduce((a,r)=>a+r.actual,0);
+  payFoot += `<td>€${tot.toFixed(2)}</td>`;
+});
+payFoot += `<td>€${grandTotalPaid.toFixed(2)}</td>`;
+payTotalRow.innerHTML = payFoot;
+
+// ── Debt table ────────────────────────────────────────────────────────
+const debtTbody = document.querySelector('#debt-table tbody');
+YEARS.forEach((year, yi) => {
+  const tr = document.createElement('tr');
+  const totalDebt = results.reduce((s,m)=>s+m.rows[yi].rollingDebt, 0);
+  let cells = `<td class="year-col">${year}</td>`;
+  results.forEach(m => {
+    const d = m.rows[yi].rollingDebt;
+    const cls = d > 300 ? 'neg' : d > 0 ? '' : 'zero';
+    cells += `<td class="${cls}">${d > 0 ? '€'+d.toFixed(2) : '—'}</td>`;
+  });
+  cells += `<td class="bold neg">€${totalDebt.toFixed(2)}</td>`;
+  tr.innerHTML = cells;
+  debtTbody.appendChild(tr);
+});
+
+// Debt totals footer (current / last year)
+const debtTotalRow = document.getElementById('debt-total-row');
+const lastIdx = YEARS.length - 1;
+const grandTotalDebt = results.reduce((s,m)=>s+m.rows[lastIdx].rollingDebt, 0);
+let debtFoot = `<td class="year-col">Actual</td>`;
+results.forEach(m => {
+  debtFoot += `<td>€${m.rows[lastIdx].rollingDebt.toFixed(2)}</td>`;
+});
+debtFoot += `<td>€${grandTotalDebt.toFixed(2)}</td>`;
+debtTotalRow.innerHTML = debtFoot;
+
+// ── Chart ─────────────────────────────────────────────────────────────
+function fs(w) { return Math.round(Math.max(9, Math.min(13, w / 60))); }
+
+const ctx = document.getElementById('chart').getContext('2d');
+
+const datasets = results.map(m => ({
+  label: m.label,
+  data: m.rows.map(r => r.rollingDebt),
+  borderColor: m.color,
+  backgroundColor: m.color + '18',
+  borderWidth: 2.5,
+  pointRadius: 5,
+  pointBackgroundColor: m.color,
+  pointBorderColor: '#fff',
+  pointBorderWidth: 2,
+  fill: false,
+  tension: 0.3,
+}));
+
+// Add expected-contribution reference line (dashed)
+datasets.push({
+  label: 'Cuota esperada (referencia)',
+  data: EXPECTED,
+  borderColor: '#95a5a6',
+  backgroundColor: 'transparent',
+  borderWidth: 1.5,
+  borderDash: [6, 4],
+  pointRadius: 0,
+  fill: false,
+  tension: 0,
+  yAxisID: 'y',
+});
+
+const yMax = Math.max(
+  ...results.flatMap(m => m.rows.map(r => r.rollingDebt)),
+  ...EXPECTED
+) * 1.15;
+
+function applyResponsive(chart, w) {
+  const f = fs(w);
+  const small = w < 560;
+  chart.options.plugins.legend.position = small ? 'bottom' : 'top';
+  chart.options.plugins.legend.labels.font = { size: f };
+  chart.options.plugins.legend.labels.padding = small ? 8 : 14;
+  chart.options.plugins.legend.labels.boxWidth = small ? 10 : 14;
+  chart.options.scales.x.ticks.font = { size: f };
+  chart.options.scales.y.ticks.font = { size: f };
+  results.forEach((_, i) => {
+    chart.data.datasets[i].pointRadius = small ? 3 : 5;
+  });
+  chart.update('none');
+}
+
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets,
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    interaction: { mode: 'index', intersect: false },
+    onResize(chart, size) { applyResponsive(chart, size.width); },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { usePointStyle: true, padding: 14, font: { size: 12 }, boxWidth: 12 }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 12 } }
+      },
+      y: {
+        min: 0,
+        max: yMax,
+        title: { display: true, text: 'Deuda acumulada 5 años (€)' },
+        grid: { color: 'rgba(0,0,0,0.06)' },
+        ticks: { font: { size: 12 }, callback: v => `€${v}` }
+      }
+    }
+  }
+});
+
+applyResponsive(chart, chart.width);
+</script>
+</body>
+</html>
