@@ -89,6 +89,7 @@ struct Ui {
     footer1: &'static str,
     footer2: &'static str,
     choose_lang: &'static str,
+    toggle_theme: &'static str,
     blog_heading: &'static str,
     blog_intro: &'static str,
     page_home: &'static str,
@@ -111,6 +112,7 @@ fn ui(locale: Locale) -> Ui {
             footer1: "Crafted with care using Rust - Designed for sustainability",
             footer2: "Growing ideas for a thriving planet and aligned AI",
             choose_lang: "Choose language",
+            toggle_theme: "Toggle light/dark theme",
             blog_heading: "Writing",
             blog_intro:
                 "Reflections on sustainability, AI safety, and cultivating a humane technological future.",
@@ -131,6 +133,7 @@ fn ui(locale: Locale) -> Ui {
             footer1: "Hecho con cariño usando Rust - Diseñado para la sostenibilidad",
             footer2: "Cultivando ideas para un planeta próspero y una IA alineada",
             choose_lang: "Elegir idioma",
+            toggle_theme: "Cambiar tema claro/oscuro",
             blog_heading: "Escritos",
             blog_intro:
                 "Reflexiones sobre la sostenibilidad, la seguridad de la IA y el cultivo de un futuro tecnológico humano.",
@@ -151,6 +154,7 @@ fn ui(locale: Locale) -> Ui {
             footer1: "Conçu avec soin en Rust - Pensé pour la durabilité",
             footer2: "Cultiver des idées pour une planète florissante et une IA alignée",
             choose_lang: "Choisir la langue",
+            toggle_theme: "Basculer le thème clair/sombre",
             blog_heading: "Articles",
             blog_intro:
                 "Réflexions sur la durabilité, la sécurité de l'IA et la culture d'un avenir technologique humain.",
@@ -253,6 +257,47 @@ fn generate_css(output_dir: &Path) {
     --transition-medium: 0.3s ease;
 }
 
+/* Dark theme palette - WCAG AA compliant, forest-night.
+   Defined once, applied via explicit [data-theme="dark"] and via system
+   preference when the user has not made an explicit choice. */
+:root[data-theme="dark"] {
+    --bg-primary: #161b16;
+    --bg-secondary: #1f261f;
+    --bg-accent: #2a322a;
+    --text-primary: #e8ede8;
+    --text-secondary: #c3cdc3;
+    --text-muted: #9aa89a;
+    --accent-primary: #7fae87;
+    --accent-secondary: #93c07a;
+    --accent-warm: #cd9d6c;
+    --accent-earth: #cbb893;
+    --border-light: rgba(160, 200, 170, 0.15);
+    --border-medium: rgba(160, 200, 170, 0.28);
+    --shadow-soft: rgba(0, 0, 0, 0.3);
+    --shadow-medium: rgba(0, 0, 0, 0.45);
+    --focus-ring: #9ccaa6;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-primary: #161b16;
+        --bg-secondary: #1f261f;
+        --bg-accent: #2a322a;
+        --text-primary: #e8ede8;
+        --text-secondary: #c3cdc3;
+        --text-muted: #9aa89a;
+        --accent-primary: #7fae87;
+        --accent-secondary: #93c07a;
+        --accent-warm: #cd9d6c;
+        --accent-earth: #cbb893;
+        --border-light: rgba(160, 200, 170, 0.15);
+        --border-medium: rgba(160, 200, 170, 0.28);
+        --shadow-soft: rgba(0, 0, 0, 0.3);
+        --shadow-medium: rgba(0, 0, 0, 0.45);
+        --focus-ring: #9ccaa6;
+    }
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -320,6 +365,7 @@ body {
         radial-gradient(ellipse at 20% 0%, rgba(123, 160, 91, 0.05) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 100%, rgba(196, 149, 106, 0.05) 0%, transparent 50%);
     min-height: 100vh;
+    transition: background-color var(--transition-medium), color var(--transition-medium);
 }
 
 .container {
@@ -374,6 +420,46 @@ header::after {
     color: var(--text-muted);
     font-weight: 300;
     margin-bottom: var(--space-md);
+}
+
+/* Header actions: theme toggle + language switcher */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex-shrink: 0;
+}
+
+/* Light/dark theme toggle */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: var(--space-xs) 0.7rem;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    background: var(--bg-accent);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+/* Show the icon for the theme you'd switch TO: moon in light, sun in dark */
+.theme-toggle .icon-dark { display: inline; }
+.theme-toggle .icon-light { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-dark { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-light { display: inline; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .icon-dark { display: none; }
+    :root:not([data-theme="light"]) .theme-toggle .icon-light { display: inline; }
 }
 
 /* Language switcher (zero-JS dropdown via <details>) */
@@ -1014,6 +1100,23 @@ fn lang_switcher_html(current: Locale, rel_path: &str) -> String {
     )
 }
 
+/// Blocking head script: applies the saved theme before first paint (no FOUC).
+fn theme_head_script() -> &'static str {
+    r#"<script>(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}})();</script>"#
+}
+
+/// Theme toggle button. Shows moon (switch to dark) or sun (switch to light) via CSS.
+fn theme_toggle_html(label: &str) -> String {
+    format!(
+        r#"<button type="button" class="theme-toggle" id="theme-toggle" aria-label="{label}" title="{label}"><span class="icon-dark" aria-hidden="true">🌙</span><span class="icon-light" aria-hidden="true">☀️</span></button>"#
+    )
+}
+
+/// Toggle handler: flips the effective theme, persists it, runs at end of body.
+fn theme_init_script() -> &'static str {
+    r#"<script>(function(){var b=document.getElementById('theme-toggle');if(!b)return;b.addEventListener('click',function(){var r=document.documentElement,cur=r.dataset.theme;if(!cur)cur=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var next=cur==='dark'?'light':'dark';r.dataset.theme=next;try{localStorage.setItem('theme',next);}catch(e){}});})();</script>"#
+}
+
 fn html_template(
     locale: Locale,
     page_title: &str,
@@ -1033,12 +1136,16 @@ fn html_template(
     let footer2 = u.footer2;
     let nav = nav_html(locale, current_page);
     let switcher = lang_switcher_html(locale, rel_path);
+    let toggle = theme_toggle_html(u.toggle_theme);
+    let head_script = theme_head_script();
+    let init_script = theme_init_script();
 
     format!(
         r##"<!DOCTYPE html>
 <html lang="{lang}">
 <head>
     <meta charset="UTF-8">
+    {head_script}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{desc}">
     <meta name="theme-color" content="#4a7c59">
@@ -1052,7 +1159,10 @@ fn html_template(
         <header role="banner">
             <div class="header-top">
                 <h1 class="site-title"><a href="/{prefix}">{brand}</a></h1>
-                {switcher}
+                <div class="header-actions">
+                    {toggle}
+                    {switcher}
+                </div>
             </div>
             <p class="site-tagline">{tagline}</p>
             <nav aria-label="{nav_aria}" role="navigation">
@@ -1072,6 +1182,7 @@ fn html_template(
             <p>{footer2}</p>
         </footer>
     </div>
+    {init_script}
 </body>
 </html>"##
     )
@@ -1095,6 +1206,9 @@ fn post_template(
     let footer2 = u.footer2;
     let nav = nav_html(locale, "");
     let switcher = lang_switcher_html(locale, rel_path);
+    let toggle = theme_toggle_html(u.toggle_theme);
+    let head_script = theme_head_script();
+    let init_script = theme_init_script();
 
     let meta_description = if description.is_empty() {
         u.meta_description
@@ -1107,6 +1221,7 @@ fn post_template(
 <html lang="{lang}">
 <head>
     <meta charset="UTF-8">
+    {head_script}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{meta_description}">
     <meta name="theme-color" content="#4a7c59">
@@ -1120,7 +1235,10 @@ fn post_template(
         <header role="banner">
             <div class="header-top">
                 <h1 class="site-title"><a href="/{prefix}">{brand}</a></h1>
-                {switcher}
+                <div class="header-actions">
+                    {toggle}
+                    {switcher}
+                </div>
             </div>
             <p class="site-tagline">{tagline}</p>
             <nav aria-label="{nav_aria}" role="navigation">
@@ -1142,6 +1260,7 @@ fn post_template(
             <p>{footer2}</p>
         </footer>
     </div>
+    {init_script}
 </body>
 </html>"##
     )
