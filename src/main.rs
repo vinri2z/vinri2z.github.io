@@ -17,41 +17,180 @@ struct Post {
     slug: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Locale {
+    En,
+    Es,
+    Fr,
+}
+
+impl Locale {
+    fn all() -> [Locale; 3] {
+        [Locale::En, Locale::Es, Locale::Fr]
+    }
+
+    /// BCP-47 code for the <html lang> attribute.
+    fn code(self) -> &'static str {
+        match self {
+            Locale::En => "en",
+            Locale::Es => "es",
+            Locale::Fr => "fr",
+        }
+    }
+
+    /// Output sub-directory prefix. English lives at the root.
+    fn prefix(self) -> &'static str {
+        match self {
+            Locale::En => "",
+            Locale::Es => "es/",
+            Locale::Fr => "fr/",
+        }
+    }
+
+    /// Content sub-directory holding this locale's markdown posts.
+    fn content_dir(self) -> &'static str {
+        match self {
+            Locale::En => "content/posts/en",
+            Locale::Es => "content/posts/es",
+            Locale::Fr => "content/posts/fr",
+        }
+    }
+
+    /// Flag emoji shown in the language switcher.
+    fn flag(self) -> &'static str {
+        match self {
+            Locale::En => "🇬🇧",
+            Locale::Es => "🇪🇸",
+            Locale::Fr => "🇫🇷",
+        }
+    }
+
+    /// The language's own name, shown in the switcher.
+    fn label(self) -> &'static str {
+        match self {
+            Locale::En => "English",
+            Locale::Es => "Español",
+            Locale::Fr => "Français",
+        }
+    }
+}
+
+/// All translatable UI chrome for a locale.
+struct Ui {
+    site_title: &'static str,
+    tagline: &'static str,
+    nav_home: &'static str,
+    nav_about: &'static str,
+    nav_writing: &'static str,
+    nav_aria: &'static str,
+    skip_link: &'static str,
+    meta_description: &'static str,
+    author: &'static str,
+    footer1: &'static str,
+    footer2: &'static str,
+    choose_lang: &'static str,
+    blog_heading: &'static str,
+    blog_intro: &'static str,
+    page_home: &'static str,
+    page_about: &'static str,
+}
+
+fn ui(locale: Locale) -> Ui {
+    match locale {
+        Locale::En => Ui {
+            site_title: "Nature &amp; Technology",
+            tagline: "Exploring sustainability and AI safety for a humane future",
+            nav_home: "Home",
+            nav_about: "About",
+            nav_writing: "Writing",
+            nav_aria: "Main navigation",
+            skip_link: "Skip to main content",
+            meta_description:
+                "Exploring the intersection of sustainability, AI safety, and our collective future.",
+            author: "Vincent Rizzo",
+            footer1: "Crafted with care using Rust - Designed for sustainability",
+            footer2: "Growing ideas for a thriving planet and aligned AI",
+            choose_lang: "Choose language",
+            blog_heading: "Writing",
+            blog_intro:
+                "Reflections on sustainability, AI safety, and cultivating a humane technological future.",
+            page_home: "Home",
+            page_about: "About",
+        },
+        Locale::Es => Ui {
+            site_title: "Naturaleza y Tecnología",
+            tagline: "Explorando la sostenibilidad y la seguridad de la IA para un futuro humano",
+            nav_home: "Inicio",
+            nav_about: "Acerca de",
+            nav_writing: "Escritos",
+            nav_aria: "Navegación principal",
+            skip_link: "Saltar al contenido principal",
+            meta_description:
+                "Explorando la intersección de la sostenibilidad, la seguridad de la IA y nuestro futuro colectivo.",
+            author: "Vincent Rizzo",
+            footer1: "Hecho con cariño usando Rust - Diseñado para la sostenibilidad",
+            footer2: "Cultivando ideas para un planeta próspero y una IA alineada",
+            choose_lang: "Elegir idioma",
+            blog_heading: "Escritos",
+            blog_intro:
+                "Reflexiones sobre la sostenibilidad, la seguridad de la IA y el cultivo de un futuro tecnológico humano.",
+            page_home: "Inicio",
+            page_about: "Acerca de",
+        },
+        Locale::Fr => Ui {
+            site_title: "Nature et Technologie",
+            tagline: "Explorer la durabilité et la sécurité de l'IA pour un avenir humain",
+            nav_home: "Accueil",
+            nav_about: "À propos",
+            nav_writing: "Articles",
+            nav_aria: "Navigation principale",
+            skip_link: "Aller au contenu principal",
+            meta_description:
+                "Explorer l'intersection de la durabilité, de la sécurité de l'IA et de notre avenir collectif.",
+            author: "Vincent Rizzo",
+            footer1: "Conçu avec soin en Rust - Pensé pour la durabilité",
+            footer2: "Cultiver des idées pour une planète florissante et une IA alignée",
+            choose_lang: "Choisir la langue",
+            blog_heading: "Articles",
+            blog_intro:
+                "Réflexions sur la durabilité, la sécurité de l'IA et la culture d'un avenir technologique humain.",
+            page_home: "Accueil",
+            page_about: "À propos",
+        },
+    }
+}
+
 fn main() {
     let output_dir = Path::new("output");
     fs::create_dir_all(output_dir).expect("Failed to create output directory");
-    fs::create_dir_all(output_dir.join("posts")).expect("Failed to create posts directory");
     fs::create_dir_all(output_dir.join("css")).expect("Failed to create css directory");
 
-    // Generate CSS
+    // Generate CSS once (shared across all locales via absolute /css/ path)
     generate_css(output_dir);
 
-    // Parse and generate blog posts
-    let posts = parse_posts();
+    for locale in Locale::all() {
+        let dir = output_dir.join(locale.prefix());
+        fs::create_dir_all(&dir).expect("Failed to create locale directory");
+        fs::create_dir_all(dir.join("posts")).expect("Failed to create posts directory");
 
-    // Generate individual post pages
-    for post in &posts {
-        generate_post_page(post, output_dir);
+        let posts = parse_posts(locale);
+
+        for post in &posts {
+            generate_post_page(locale, post, &dir);
+        }
+
+        generate_blog_index(locale, &posts, &dir);
+        generate_home_page(locale, &dir);
+        generate_about_page(locale, &dir);
+
+        println!("✓ Generated locale '{}'", locale.code());
     }
 
-    // Generate blog index
-    generate_blog_index(&posts, output_dir);
-
-    // Generate home page
-    generate_home_page(output_dir);
-
-    // Generate about page
-    generate_about_page(output_dir);
-
-    // Copy static content (standalone HTML pages)
+    // Copy static content (standalone HTML pages, English only, verbatim)
     copy_static_content(output_dir);
 
     println!("✓ Site generated successfully in 'output/' directory");
-    println!("  - index.html (home)");
-    println!("  - about.html");
-    println!("  - blog.html");
-    println!("  - posts/*.html");
-    println!("  - contribution-debt-chart.html");
+    println!("  - / (English), /es/ (Español), /fr/ (Français)");
 }
 
 fn copy_static_content(output_dir: &Path) {
@@ -208,12 +347,20 @@ header::after {
     border-radius: 1px;
 }
 
+/* Header top row: title + language switcher */
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
 .site-title {
     font-family: var(--font-serif);
     font-size: 2rem;
     font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: var(--space-sm);
     letter-spacing: -0.02em;
 }
 
@@ -227,6 +374,98 @@ header::after {
     color: var(--text-muted);
     font-weight: 300;
     margin-bottom: var(--space-md);
+}
+
+/* Language switcher (zero-JS dropdown via <details>) */
+.lang-switcher {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.lang-switcher summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: var(--space-xs) 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.lang-switcher summary::-webkit-details-marker {
+    display: none;
+}
+
+.lang-switcher summary:hover {
+    background: var(--bg-accent);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.lang-switcher summary:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.lang-switcher .flag {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.lang-switcher .chev {
+    font-size: 0.7rem;
+    transition: transform var(--transition-fast);
+}
+
+.lang-switcher[open] .chev {
+    transform: rotate(180deg);
+}
+
+.lang-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    margin: 0;
+    padding: 0.35rem;
+    list-style: none;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: 10px;
+    box-shadow: 0 8px 30px var(--shadow-medium);
+    min-width: 11rem;
+    z-index: 100;
+}
+
+.lang-menu li {
+    margin: 0;
+}
+
+.lang-menu a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: var(--space-xs) 0.6rem;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    border-bottom: none;
+    font-size: 0.95rem;
+}
+
+.lang-menu a:hover {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    border-bottom: none;
+}
+
+.lang-menu a[aria-current="true"] {
+    color: var(--accent-primary);
+    font-weight: 500;
+    background: var(--bg-accent);
 }
 
 nav {
@@ -587,6 +826,10 @@ footer p {
     nav {
         gap: var(--space-sm);
     }
+
+    .lang-switcher .lang-name {
+        display: none;
+    }
 }
 
 /* Ensure sufficient touch target size on mobile */
@@ -648,7 +891,8 @@ select:focus-visible {
         display: none;
     }
 
-    .skip-link {
+    .skip-link,
+    .lang-switcher {
         display: none;
     }
 }
@@ -656,9 +900,9 @@ select:focus-visible {
     fs::write(output_dir.join("css/style.css"), css).expect("Failed to write CSS");
 }
 
-fn parse_posts() -> Vec<Post> {
+fn parse_posts(locale: Locale) -> Vec<Post> {
     let mut posts = Vec::new();
-    let posts_dir = Path::new("content/posts");
+    let posts_dir = Path::new(locale.content_dir());
 
     if !posts_dir.exists() {
         return posts;
@@ -715,33 +959,104 @@ fn parse_post(content: &str, path: &Path) -> Option<Post> {
     })
 }
 
-fn html_template(title: &str, content: &str, current_page: &str) -> String {
-    let home_aria = if current_page == "home" { r#" aria-current="page""# } else { "" };
-    let about_aria = if current_page == "about" { r#" aria-current="page""# } else { "" };
-    let blog_aria = if current_page == "blog" { r#" aria-current="page""# } else { "" };
+/// Build the localized main navigation links (root-absolute hrefs).
+fn nav_html(locale: Locale, current_page: &str) -> String {
+    let u = ui(locale);
+    let prefix = locale.prefix();
+
+    let link = |rel: &str, label: &str, key: &str| {
+        let aria = if current_page == key {
+            r#" aria-current="page""#
+        } else {
+            ""
+        };
+        format!(r#"                <a href="/{prefix}{rel}"{aria}>{label}</a>"#)
+    };
+
+    format!(
+        "{}\n{}\n{}",
+        link("", u.nav_home, "home"),
+        link("about.html", u.nav_about, "about"),
+        link("blog.html", u.nav_writing, "blog"),
+    )
+}
+
+/// Build the zero-JS flag dropdown that links to the equivalent page in each language.
+/// `rel_path` is the page path relative to a locale root ("", "about.html",
+/// "blog.html", "posts/<slug>.html").
+fn lang_switcher_html(current: Locale, rel_path: &str) -> String {
+    let mut items = String::new();
+    for loc in Locale::all() {
+        let aria = if loc == current {
+            r#" aria-current="true""#
+        } else {
+            ""
+        };
+        let prefix = loc.prefix();
+        let flag = loc.flag();
+        let label = loc.label();
+        items.push_str(&format!(
+            r#"                    <li><a href="/{prefix}{rel_path}"{aria}><span class="flag">{flag}</span> {label}</a></li>
+"#
+        ));
+    }
+
+    let choose = ui(current).choose_lang;
+    let cur_flag = current.flag();
+    let cur_label = current.label();
+
+    format!(
+        r#"<details class="lang-switcher">
+                <summary aria-label="{choose}"><span class="flag">{cur_flag}</span><span class="lang-name">{cur_label}</span><span class="chev" aria-hidden="true">▾</span></summary>
+                <ul class="lang-menu">
+{items}                </ul>
+            </details>"#
+    )
+}
+
+fn html_template(
+    locale: Locale,
+    page_title: &str,
+    content: &str,
+    current_page: &str,
+    rel_path: &str,
+) -> String {
+    let u = ui(locale);
+    let lang = locale.code();
+    let prefix = locale.prefix();
+    let brand = u.site_title;
+    let tagline = u.tagline;
+    let skip = u.skip_link;
+    let desc = u.meta_description;
+    let nav_aria = u.nav_aria;
+    let footer1 = u.footer1;
+    let footer2 = u.footer2;
+    let nav = nav_html(locale, current_page);
+    let switcher = lang_switcher_html(locale, rel_path);
 
     format!(
         r##"<!DOCTYPE html>
-<html lang="en">
+<html lang="{lang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Exploring the intersection of sustainability, AI safety, and our collective future.">
+    <meta name="description" content="{desc}">
     <meta name="theme-color" content="#4a7c59">
-    <title>{title} - Nature &amp; Technology</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>{page_title} - {brand}</title>
+    <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 </head>
 <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#main-content" class="skip-link">{skip}</a>
     <div class="container">
         <header role="banner">
-            <h1 class="site-title"><a href="index.html">Nature &amp; Technology</a></h1>
-            <p class="site-tagline">Exploring sustainability and AI safety for a humane future</p>
-            <nav aria-label="Main navigation" role="navigation">
-                <a href="index.html"{home_aria}>Home</a>
-                <a href="about.html"{about_aria}>About</a>
-                <a href="blog.html"{blog_aria}>Writing</a>
+            <div class="header-top">
+                <h1 class="site-title"><a href="/{prefix}">{brand}</a></h1>
+                {switcher}
+            </div>
+            <p class="site-tagline">{tagline}</p>
+            <nav aria-label="{nav_aria}" role="navigation">
+{nav}
             </nav>
         </header>
         <main id="main-content" role="main" tabindex="-1">
@@ -753,8 +1068,8 @@ fn html_template(title: &str, content: &str, current_page: &str) -> String {
                 <span class="leaf-icon">🍃</span>
                 <span class="leaf-icon">🌿</span>
             </div>
-            <p>Crafted with care using Rust - Designed for sustainability</p>
-            <p>Growing ideas for a thriving planet and aligned AI</p>
+            <p>{footer1}</p>
+            <p>{footer2}</p>
         </footer>
     </div>
 </body>
@@ -762,35 +1077,54 @@ fn html_template(title: &str, content: &str, current_page: &str) -> String {
     )
 }
 
-fn post_template(title: &str, description: &str, content: &str) -> String {
+fn post_template(
+    locale: Locale,
+    title: &str,
+    description: &str,
+    content: &str,
+    rel_path: &str,
+) -> String {
+    let u = ui(locale);
+    let lang = locale.code();
+    let prefix = locale.prefix();
+    let brand = u.site_title;
+    let tagline = u.tagline;
+    let skip = u.skip_link;
+    let nav_aria = u.nav_aria;
+    let footer1 = u.footer1;
+    let footer2 = u.footer2;
+    let nav = nav_html(locale, "");
+    let switcher = lang_switcher_html(locale, rel_path);
+
     let meta_description = if description.is_empty() {
-        "Exploring the intersection of sustainability, AI safety, and our collective future."
+        u.meta_description
     } else {
         description
     };
 
     format!(
         r##"<!DOCTYPE html>
-<html lang="en">
+<html lang="{lang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{meta_description}">
     <meta name="theme-color" content="#4a7c59">
-    <title>{title} - Nature &amp; Technology</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <title>{title} - {brand}</title>
+    <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 </head>
 <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#main-content" class="skip-link">{skip}</a>
     <div class="container">
         <header role="banner">
-            <h1 class="site-title"><a href="../index.html">Nature &amp; Technology</a></h1>
-            <p class="site-tagline">Exploring sustainability and AI safety for a humane future</p>
-            <nav aria-label="Main navigation" role="navigation">
-                <a href="../index.html">Home</a>
-                <a href="../about.html">About</a>
-                <a href="../blog.html">Writing</a>
+            <div class="header-top">
+                <h1 class="site-title"><a href="/{prefix}">{brand}</a></h1>
+                {switcher}
+            </div>
+            <p class="site-tagline">{tagline}</p>
+            <nav aria-label="{nav_aria}" role="navigation">
+{nav}
             </nav>
         </header>
         <main id="main-content" role="main" tabindex="-1">
@@ -804,8 +1138,8 @@ fn post_template(title: &str, description: &str, content: &str) -> String {
                 <span class="leaf-icon">🍃</span>
                 <span class="leaf-icon">🌿</span>
             </div>
-            <p>Crafted with care using Rust - Designed for sustainability</p>
-            <p>Growing ideas for a thriving planet and aligned AI</p>
+            <p>{footer1}</p>
+            <p>{footer2}</p>
         </footer>
     </div>
 </body>
@@ -813,23 +1147,30 @@ fn post_template(title: &str, description: &str, content: &str) -> String {
     )
 }
 
-fn generate_post_page(post: &Post, output_dir: &Path) {
+fn generate_post_page(locale: Locale, post: &Post, dir: &Path) {
+    let author = ui(locale).author;
     let content = format!(
         r#"            <h1>{}</h1>
             <p class="post-date">{}</p>
             {}
-            <p class="post-author">Vincent Rizzo</p>"#,
-        post.meta.title, post.meta.date, post.content_html
+            <p class="post-author">{}</p>"#,
+        post.meta.title, post.meta.date, post.content_html, author
     );
 
     let desc = post.meta.description.as_deref().unwrap_or("");
-    let html = post_template(&post.meta.title, desc, &content);
-    let path = output_dir.join("posts").join(format!("{}.html", post.slug));
+    let rel_path = format!("posts/{}.html", post.slug);
+    let html = post_template(locale, &post.meta.title, desc, &content, &rel_path);
+    let path = dir.join("posts").join(format!("{}.html", post.slug));
     fs::write(path, html).expect("Failed to write post");
 }
 
-fn generate_blog_index(posts: &[Post], output_dir: &Path) {
-    let mut list = String::from("        <h1>Writing</h1>\n        <p class=\"intro\">Reflections on sustainability, AI safety, and cultivating a humane technological future.</p>\n        <ul class=\"post-list\">\n");
+fn generate_blog_index(locale: Locale, posts: &[Post], dir: &Path) {
+    let u = ui(locale);
+    let prefix = locale.prefix();
+    let mut list = format!(
+        "        <h1>{}</h1>\n        <p class=\"intro\">{}</p>\n        <ul class=\"post-list\">\n",
+        u.blog_heading, u.blog_intro
+    );
 
     for post in posts {
         let desc = post
@@ -842,22 +1183,32 @@ fn generate_blog_index(posts: &[Post], output_dir: &Path) {
         list.push_str(&format!(
             r#"            <li>
                 <span class="post-date">{}</span>
-                <a class="post-title" href="posts/{}.html">{}</a>
+                <a class="post-title" href="/{}posts/{}.html">{}</a>
                 {}
             </li>
 "#,
-            post.meta.date, post.slug, post.meta.title, desc
+            post.meta.date, prefix, post.slug, post.meta.title, desc
         ));
     }
 
     list.push_str("        </ul>");
 
-    let html = html_template("Writing", &list, "blog");
-    fs::write(output_dir.join("blog.html"), html).expect("Failed to write blog index");
+    let html = html_template(locale, u.blog_heading, &list, "blog", "blog.html");
+    fs::write(dir.join("blog.html"), html).expect("Failed to write blog index");
 }
 
-fn generate_home_page(output_dir: &Path) {
-    let content = r#"        <h1>Welcome</h1>
+fn generate_home_page(locale: Locale, dir: &Path) {
+    let content = home_body(locale);
+    let title = ui(locale).page_home;
+    let html = html_template(locale, title, &content, "home", "");
+    fs::write(dir.join("index.html"), html).expect("Failed to write home page");
+}
+
+fn home_body(locale: Locale) -> String {
+    let p = locale.prefix();
+    match locale {
+        Locale::En => format!(
+            r#"        <h1>Welcome</h1>
         <p class="intro">
             I explore the intersection of <strong>nature</strong>, <strong>technology</strong>, and our shared future.
             Like a garden, our technological landscape needs careful tending—nurturing what helps life flourish
@@ -899,16 +1250,117 @@ fn generate_home_page(output_dir: &Path) {
         </div>
 
         <p>
-            Explore my <a href="blog.html">writing</a> for reflections on these themes,
-            or learn more <a href="about.html">about my journey</a>.
-        </p>"#;
+            Explore my <a href="/{p}blog.html">writing</a> for reflections on these themes,
+            or learn more <a href="/{p}about.html">about my journey</a>.
+        </p>"#
+        ),
+        Locale::Es => format!(
+            r#"        <h1>Bienvenido</h1>
+        <p class="intro">
+            Exploro la intersección entre la <strong>naturaleza</strong>, la <strong>tecnología</strong> y nuestro futuro compartido.
+            Como un jardín, nuestro paisaje tecnológico necesita un cuidado atento: nutrir lo que ayuda a la vida a florecer
+            siendo conscientes de lo que cultivamos.
+        </p>
 
-    let html = html_template("Home", content, "home");
-    fs::write(output_dir.join("index.html"), html).expect("Failed to write home page");
+        <div class="feature-highlight">
+            <h2>La sabiduría de la rueda</h2>
+            <p>
+                Piensa en la rueda y la bicicleta, quizá las tecnologías más elegantes de la humanidad.
+                No exigen más energía; <strong>amplifican lo que ya tenemos</strong>.
+                Un ciclista se mueve cuatro veces más rápido que quien camina usando el mismo esfuerzo.
+                Una carreta con ruedas permite a una persona transportar lo que de otro modo requeriría a muchas.
+            </p>
+            <p>
+                Estos inventos no conquistaron la naturaleza: trabajaron con ella. Ampliaron nuestra
+                capacidad de <strong>movernos</strong>, <strong>construir</strong> y <strong>conectar</strong>
+                sin requerir una inversión de energía cada vez mayor. La bicicleta sigue siendo la forma
+                de transporte humano más eficiente energéticamente jamás concebida.
+            </p>
+            <p>
+                Esta es la medida de la tecnología verdaderamente grande: no cuánta energía consume,
+                sino con cuánta gracia multiplica la capacidad humana dentro de los límites naturales.
+            </p>
+        </div>
+
+        <div class="feature-highlight">
+            <h2>Cultivar una tecnología reflexiva</h2>
+            <p>
+                En una era de cambios rápidos, creo que la tecnología debería servir a la humanidad
+                a la vez que honra el mundo vivo que nos sostiene. Mi trabajo se centra en dos
+                áreas entrelazadas: la <strong>sostenibilidad</strong> y la <strong>seguridad de la IA</strong>.
+            </p>
+            <p>
+                Ambas nos exigen pensar más allá de los beneficios inmediatos: considerar las semillas que plantamos hoy
+                y los bosques en los que podrían convertirse mañana. Como la rueda y la bicicleta, las mejores
+                tecnologías amplían lo posible sin exigir más de lo que podemos dar de forma sostenible.
+            </p>
+        </div>
+
+        <p>
+            Explora mis <a href="/{p}blog.html">escritos</a> para reflexiones sobre estos temas,
+            o conoce más <a href="/{p}about.html">sobre mi trayectoria</a>.
+        </p>"#
+        ),
+        Locale::Fr => format!(
+            r#"        <h1>Bienvenue</h1>
+        <p class="intro">
+            J'explore l'intersection entre la <strong>nature</strong>, la <strong>technologie</strong> et notre avenir commun.
+            Comme un jardin, notre paysage technologique demande un entretien attentif : nourrir ce qui aide la vie à s'épanouir
+            tout en restant conscient de ce que nous cultivons.
+        </p>
+
+        <div class="feature-highlight">
+            <h2>La sagesse de la roue</h2>
+            <p>
+                Pensez à la roue et à la bicyclette, peut-être les technologies les plus élégantes de l'humanité.
+                Elles ne réclament pas plus d'énergie ; elles <strong>amplifient ce que nous avons déjà</strong>.
+                Un cycliste avance quatre fois plus vite qu'un marcheur pour le même effort.
+                Une charrette à roues permet à une personne de déplacer ce qui en exigerait autrement plusieurs.
+            </p>
+            <p>
+                Ces inventions n'ont pas conquis la nature : elles ont travaillé avec elle. Elles ont étendu notre
+                capacité à <strong>nous déplacer</strong>, à <strong>construire</strong> et à <strong>nous relier</strong>
+                sans exiger un investissement énergétique toujours plus grand. La bicyclette demeure le mode
+                de transport humain le plus efficace énergétiquement jamais conçu.
+            </p>
+            <p>
+                Voilà la mesure d'une technologie vraiment grande : non pas l'énergie qu'elle consomme,
+                mais la grâce avec laquelle elle multiplie la capacité humaine dans les limites naturelles.
+            </p>
+        </div>
+
+        <div class="feature-highlight">
+            <h2>Cultiver une technologie réfléchie</h2>
+            <p>
+                À une époque de changements rapides, je crois que la technologie devrait servir l'humanité
+                tout en honorant le monde vivant qui nous soutient. Mon travail se concentre sur deux
+                domaines entrelacés : la <strong>durabilité</strong> et la <strong>sécurité de l'IA</strong>.
+            </p>
+            <p>
+                Tous deux nous demandent de penser au-delà des gains immédiats : de considérer les graines que nous plantons aujourd'hui
+                et les forêts qu'elles pourraient devenir demain. Comme la roue et la bicyclette, les meilleures
+                technologies élargissent le possible sans exiger plus que ce que nous pouvons durablement donner.
+            </p>
+        </div>
+
+        <p>
+            Explorez mes <a href="/{p}blog.html">articles</a> pour des réflexions sur ces thèmes,
+            ou apprenez-en plus <a href="/{p}about.html">sur mon parcours</a>.
+        </p>"#
+        ),
+    }
 }
 
-fn generate_about_page(output_dir: &Path) {
-    let content = r#"        <h1>About Me</h1>
+fn generate_about_page(locale: Locale, dir: &Path) {
+    let content = about_body(locale);
+    let title = ui(locale).page_about;
+    let html = html_template(locale, title, content, "about", "about.html");
+    fs::write(dir.join("about.html"), html).expect("Failed to write about page");
+}
+
+fn about_body(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => r#"        <h1>About Me</h1>
         <p class="intro">
             I'm Vincent Rizzo, a Machine Learning & Software engineer nurturing ideas at the intersection of technology and our living world.
         </p>
@@ -949,8 +1401,90 @@ fn generate_about_page(output_dir: &Path) {
             <p>
                 Find me on GitHub or reach out through social channels.
             </p>
-        </div>"#;
+        </div>"#,
+        Locale::Es => r#"        <h1>Sobre mí</h1>
+        <p class="intro">
+            Soy Vincent Rizzo, ingeniero de Machine Learning y Software que cultiva ideas en la intersección de la tecnología y nuestro mundo vivo.
+        </p>
 
-    let html = html_template("About", content, "about");
-    fs::write(output_dir.join("about.html"), html).expect("Failed to write about page");
+        <div class="about-section">
+            <h2>Lo que me importa</h2>
+            <p>
+                <strong>Sostenibilidad:</strong> Como quien comprende un ecosistema, exploro cómo nuestras
+                decisiones tecnológicas repercuten en el medio ambiente. Desde la computación consciente con la energía
+                hasta los principios de diseño circular, me atraen los enfoques que permiten que la tecnología y la naturaleza
+                coexistan en armonía.
+            </p>
+            <p>
+                <strong>Seguridad de la IA:</strong> A medida que la inteligencia artificial se vuelve más capaz, garantizar que
+                siga siendo una presencia beneficiosa —como un jardín bien cuidado y no como una especie invasora— se vuelve
+                vital. Sigo los avances en investigación de alineación, interpretabilidad y gobernanza reflexiva.
+            </p>
+        </div>
+
+        <div class="about-section">
+            <h2>Este sitio vivo</h2>
+            <p>
+                Este sitio web crece a partir de un generador de sitios estáticos personalizado escrito en Rust.
+                Las publicaciones brotan de simples archivos Markdown. El diseño en sí refleja mis valores:
+                uso mínimo de recursos, suave para la vista, centrado en lo que importa.
+            </p>
+            <p>
+                Cada byte ahorrado es un pequeño acto de cuidado hacia nuestros bienes digitales comunes.
+            </p>
+        </div>
+
+        <div class="about-section">
+            <h2>Conectemos</h2>
+            <p>
+                Creo que las mejores ideas surgen de la conversación. Tanto si sientes curiosidad por la
+                sostenibilidad, la seguridad de la IA o los lugares donde se entrelazan, me encantaría saber de ti.
+            </p>
+            <p>
+                Encuéntrame en GitHub o escríbeme a través de las redes sociales.
+            </p>
+        </div>"#,
+        Locale::Fr => r#"        <h1>À propos de moi</h1>
+        <p class="intro">
+            Je suis Vincent Rizzo, ingénieur en Machine Learning et logiciel, qui cultive des idées à l'intersection de la technologie et de notre monde vivant.
+        </p>
+
+        <div class="about-section">
+            <h2>Ce qui me tient à cœur</h2>
+            <p>
+                <strong>La durabilité :</strong> Comme on comprend un écosystème, j'explore comment nos
+                choix technologiques se répercutent sur l'environnement. De l'informatique soucieuse de l'énergie
+                aux principes de conception circulaire, je suis attiré par les approches qui laissent la technologie et la nature
+                coexister en harmonie.
+            </p>
+            <p>
+                <strong>La sécurité de l'IA :</strong> À mesure que l'intelligence artificielle gagne en capacité, garantir qu'elle
+                reste une présence bénéfique — tel un jardin bien entretenu plutôt qu'une espèce invasive — devient
+                vital. Je suis les avancées en recherche sur l'alignement, l'interprétabilité et une gouvernance réfléchie.
+            </p>
+        </div>
+
+        <div class="about-section">
+            <h2>Ce site vivant</h2>
+            <p>
+                Ce site web pousse à partir d'un générateur de site statique sur mesure écrit en Rust.
+                Les articles éclosent de simples fichiers Markdown. Le design lui-même reflète mes valeurs :
+                usage minimal des ressources, doux pour les yeux, centré sur l'essentiel.
+            </p>
+            <p>
+                Chaque octet économisé est un petit geste de soin pour nos communs numériques.
+            </p>
+        </div>
+
+        <div class="about-section">
+            <h2>Restons en contact</h2>
+            <p>
+                Je crois que les meilleures idées naissent de la conversation. Que vous soyez curieux de
+                durabilité, de sécurité de l'IA, ou des endroits où elles s'entremêlent, j'aimerais beaucoup avoir de vos nouvelles.
+            </p>
+            <p>
+                Retrouvez-moi sur GitHub ou contactez-moi via les réseaux sociaux.
+            </p>
+        </div>"#,
+    }
 }
