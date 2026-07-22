@@ -2,6 +2,9 @@
 name = "vinri2z"
 version = "0.1.0"
 edition = "2021"
+# Site generator is the default bin; `cargo run` must not pick up the
+# lint-prose helper in src/bin/ (would make `cargo run` ambiguous in CI).
+default-run = "vinri2z"
 
 [dependencies]
 pulldown-cmark = "0.9"
