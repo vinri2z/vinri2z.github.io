@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# Block commits that reintroduce typographic AI-writing tells (em-dashes,
+# curly quotes, ellipsis glyph) in content/, static/, or src/main.rs.
+#
+# Install (from repo root):
+#   ln -sf ../../scripts/hooks/pre-commit .git/hooks/pre-commit
+#
+# Lexical filler is only warned, never blocked.
+
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+
+if ! cargo run --quiet --manifest-path "$root/Cargo.toml" --bin lint-prose; then
+  echo
+  echo "commit blocked: typographic AI-writing tells found."
+  echo "fix with: cargo lint-prose -- --fix   (then re-stage and commit)"
+  exit 1
+fi

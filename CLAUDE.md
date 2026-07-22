@@ -32,14 +32,22 @@ Judgement calls (rewrite by hand, the linter only warns):
 
 ### Before committing content
 
-Run the linter. It exits non-zero if any auto-fixable tell remains:
+Run the linter (a Rust bin, `src/bin/lint-prose.rs`). It scans `content/`,
+`static/`, and the prose in `src/main.rs`, and exits non-zero if any
+auto-fixable tell remains:
 
 ```bash
-scripts/lint-prose.sh          # check (reports typographic + lexical tells)
-scripts/lint-prose.sh --fix    # auto-fix typographic tells in place
+cargo lint-prose           # check (reports typographic + lexical tells)
+cargo lint-prose -- --fix  # auto-fix typographic tells in place
 ```
 
 `--fix` handles dashes/quotes/ellipsis mechanically. Lexical tells are only
 flagged - rewriting them is your job, because the fix depends on meaning.
 When writing a new post, apply this rule as you write; do not rely on the
 linter to catch everything.
+
+A pre-commit hook enforces the typographic check. Install it once per clone:
+
+```bash
+ln -sf ../../scripts/hooks/pre-commit .git/hooks/pre-commit
+```

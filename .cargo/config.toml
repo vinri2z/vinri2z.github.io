@@ -1,0 +1,4 @@
+[alias]
+# `cargo lint-prose`            -> check content for AI-writing tells
+# `cargo lint-prose -- --fix`   -> auto-fix typographic tells in place
+lint-prose = "run --quiet --bin lint-prose --"
