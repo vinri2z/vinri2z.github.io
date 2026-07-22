@@ -189,15 +189,15 @@ const tooltipsEnabled = new URLSearchParams(window.location.search).get('tooltip
 // ── Tooltip justifications for expected contributions ──
 const tooltips = {
   2017: '↗ Seguro finca: 418.80€ ÷ 8 = 52.35€  +  5 meses × 50€/mes = 250€',
-  2018: '↗ 50€/mes × 12 meses — fondo de reserva',
-  2019: '↗ 50€/mes × 12 meses — fondo de reserva',
-  2020: '↗ Mantenimiento básico de la finca: seguro finca (517.68€ ÷ 8 = 64.71€), comisión bancaria, luz zonas comunes  +  1 mes × 50€/mes\n⚠ COVID: fondo de reserva suspendido — nadie contribuía',
-  2021: '↗ Mantenimiento básico de la finca: seguro finca (564.72€ ÷ 8 = 70.59€), comisión bancaria (~12€/mes), luz zonas comunes (~6-8€/mes)\n⚠ COVID: fondo de reserva suspendido — nadie contribuía',
+  2018: '↗ 50€/mes × 12 meses - fondo de reserva',
+  2019: '↗ 50€/mes × 12 meses - fondo de reserva',
+  2020: '↗ Mantenimiento básico de la finca: seguro finca (517.68€ ÷ 8 = 64.71€), comisión bancaria, luz zonas comunes  +  1 mes × 50€/mes\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
+  2021: '↗ Mantenimiento básico de la finca: seguro finca (564.72€ ÷ 8 = 70.59€), comisión bancaria (~12€/mes), luz zonas comunes (~6-8€/mes)\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
   2022: '↗ Seguro finca: 472.48€ ÷ 8 = 59.06€  +  10 meses × 50€/mes = 500€\n⚠ COVID: fondo de reserva reanudado progresivamente',
-  2023: '↗ 50€/mes × 12 meses — fondo de reserva',
-  2024: '↗ 50€/mes × 12 meses — fondo de reserva',
-  2025: '↗ 50€/mes × 12 meses — fondo de reserva',
-  2026: '↗ 3 meses × 50€/mes (enero–marzo)',
+  2023: '↗ 50€/mes × 12 meses - fondo de reserva',
+  2024: '↗ 50€/mes × 12 meses - fondo de reserva',
+  2025: '↗ 50€/mes × 12 meses - fondo de reserva',
+  2026: '↗ 3 meses × 50€/mes (enero - marzo)',
 };
 
 // ── Populate table ──
@@ -212,7 +212,7 @@ results.forEach(r => {
     <td${tipAttr}>${r.expected.toFixed(2)}</td>
     <td>${r.actual.toFixed(2)}</td>
     <td class="${gapClass}">${r.gap > 0 ? '+' : ''}${r.gap.toFixed(2)}</td>
-    <td class="${r.forgiven > 0 ? 'forgiven' : ''}">${r.forgiven > 0 ? r.forgiven.toFixed(2) : '—'}</td>
+    <td class="${r.forgiven > 0 ? 'forgiven' : ''}">${r.forgiven > 0 ? r.forgiven.toFixed(2) : ' - '}</td>
     <td><strong>${r.rollingDebt.toFixed(2)}</strong></td>`;
   tbody.appendChild(row);
 });
@@ -238,7 +238,7 @@ function applyResponsive(chart, w) {
   chart.options.scales.x.ticks.font = { size: f };
   chart.options.scales.y.ticks.font = { size: f };
   chart.options.scales.y.title.display = !small;
-  // Bar width — proportional to available space per category
+  // Bar width - proportional to available space per category
   const barThickness = Math.max(8, Math.min(36, (w - 80) / results.length / 2.2));
   chart.data.datasets[0].maxBarThickness = barThickness;
   chart.data.datasets[1].maxBarThickness = barThickness;
@@ -275,7 +275,7 @@ const chart = new Chart(ctx, {
       },
       {
         type: 'line',
-        label: 'Deuda acumulada 5 años (€) — FIFO',
+        label: 'Deuda acumulada 5 años (€) - FIFO',
         data: results.map(r => r.rollingDebt),
         borderColor: '#e74c3c',
         backgroundColor: 'rgba(231, 76, 60, 0.08)',
@@ -333,7 +333,7 @@ document.querySelectorAll('td.has-tooltip').forEach(td => {
   td.addEventListener('mousemove', e => {
     const GAP = 12;
     const TIP_W = 320;
-    const TIP_H = 60; // rough estimate — enough to avoid flicker
+    const TIP_H = 60; // rough estimate - enough to avoid flicker
     let x = e.clientX - TIP_W / 2;
     let y = e.clientY - TIP_H - GAP;
     // Clamp horizontally

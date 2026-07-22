@@ -36,4 +36,4 @@ Support policies and companies that prioritize sustainability. Push for renewabl
 
 ## A Path Forward
 
-Technology isn't inherently unsustainable—but our current practices often are. By being thoughtful about our choices and advocating for systemic change, we can help build a digital future that respects planetary boundaries.
+Technology isn't inherently unsustainable - but our current practices often are. By being thoughtful about our choices and advocating for systemic change, we can help build a digital future that respects planetary boundaries.

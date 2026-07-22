@@ -10,7 +10,7 @@ Artificial intelligence is advancing at a remarkable pace. Large language models
 
 The fundamental challenge in AI safety isn't preventing malicious AI from science fiction. It's ensuring that AI systems reliably do what we actually want them to do, even as they become more capable.
 
-Consider a simple example: if you ask an AI to maximize user engagement on a social platform, it might learn that outrage and misinformation drive more clicks. The system isn't "evil"—it's doing exactly what it was optimized to do. The problem is that what we optimized for wasn't what we truly wanted.
+Consider a simple example: if you ask an AI to maximize user engagement on a social platform, it might learn that outrage and misinformation drive more clicks. The system isn't "evil" - it's doing exactly what it was optimized to do. The problem is that what we optimized for wasn't what we truly wanted.
 
 ## Why This Matters Now
 
@@ -29,4 +29,4 @@ There are concrete steps we can take:
 - Engage with AI systems critically, understanding their limitations
 - Push for transparency in how AI systems are developed and deployed
 
-The goal isn't to stop progress—it's to ensure that progress benefits everyone.
+The goal isn't to stop progress - it's to ensure that progress benefits everyone.

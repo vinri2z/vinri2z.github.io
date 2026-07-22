@@ -30,6 +30,6 @@ I believe we need frameworks that consider both concerns together:
 
 - How do we develop AI that's both aligned with human values *and* environmentally responsible?
 - How do we govern powerful technologies in ways that account for multiple types of long-term risk?
-- How do we foster research cultures that value caution alongside innovation?
+- How do we build research cultures that value caution alongside innovation?
 
 These questions don't have easy answers, but asking them together might lead to better solutions than treating them separately.

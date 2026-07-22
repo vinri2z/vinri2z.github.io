@@ -1330,20 +1330,20 @@ fn home_body(locale: Locale) -> String {
             r#"        <h1>Welcome</h1>
         <p class="intro">
             I explore the intersection of <strong>nature</strong>, <strong>technology</strong>, and our shared future.
-            Like a garden, our technological landscape needs careful tending—nurturing what helps life flourish
+            Like a garden, our technological landscape needs careful tending - nurturing what helps life flourish
             while being mindful of what we cultivate.
         </p>
 
         <div class="feature-highlight">
             <h2>The Wisdom of the Wheel</h2>
             <p>
-                Consider the wheel and the bicycle—perhaps humanity's most elegant technologies.
+                Consider the wheel and the bicycle - perhaps humanity's most elegant technologies.
                 They don't demand more energy; they <strong>amplify what we already have</strong>.
                 A cyclist moves four times faster than a walker while using the same effort.
                 A cart with wheels lets one person move what would otherwise require many.
             </p>
             <p>
-                These inventions didn't conquer nature—they worked with it. They extended our
+                These inventions didn't conquer nature - they worked with it. They extended our
                 capacity to <strong>move</strong>, to <strong>build</strong>, and to <strong>connect</strong>
                 without requiring ever-greater energy investment. The bicycle remains the most
                 energy-efficient form of human transportation ever devised.
@@ -1362,7 +1362,7 @@ fn home_body(locale: Locale) -> String {
                 intertwined areas: <strong>sustainability</strong> and <strong>AI safety</strong>.
             </p>
             <p>
-                Both require us to think beyond immediate gains—to consider the seeds we plant today
+                Both require us to think beyond immediate gains - to consider the seeds we plant today
                 and the forests they might become tomorrow. Like the wheel and bicycle, the best
                 technologies expand what's possible without demanding more than we can sustainably give.
             </p>
@@ -1494,7 +1494,7 @@ fn about_body(locale: Locale) -> &'static str {
             </p>
             <p>
                 <strong>AI Safety:</strong> As artificial intelligence grows more capable, ensuring it
-                remains a beneficial presence—like a well-tended garden rather than an invasive species—becomes
+                remains a beneficial presence - like a well-tended garden rather than an invasive species - becomes
                 vital. I follow developments in alignment research, interpretability, and thoughtful governance.
             </p>
         </div>
@@ -1515,7 +1515,7 @@ fn about_body(locale: Locale) -> &'static str {
             <h2>Let's Connect</h2>
             <p>
                 I believe the best ideas emerge from conversation. Whether you're curious about
-                sustainability, AI safety, or the places where they intertwine—I'd love to hear from you.
+                sustainability, AI safety, or the places where they intertwine - I'd love to hear from you.
             </p>
             <p>
                 Find me on GitHub or reach out through social channels.
@@ -1536,7 +1536,7 @@ fn about_body(locale: Locale) -> &'static str {
             </p>
             <p>
                 <strong>Seguridad de la IA:</strong> A medida que la inteligencia artificial se vuelve más capaz, garantizar que
-                siga siendo una presencia beneficiosa —como un jardín bien cuidado y no como una especie invasora— se vuelve
+                siga siendo una presencia beneficiosa - como un jardín bien cuidado y no como una especie invasora - se vuelve
                 vital. Sigo los avances en investigación de alineación, interpretabilidad y gobernanza reflexiva.
             </p>
         </div>
@@ -1578,7 +1578,7 @@ fn about_body(locale: Locale) -> &'static str {
             </p>
             <p>
                 <strong>La sécurité de l'IA :</strong> À mesure que l'intelligence artificielle gagne en capacité, garantir qu'elle
-                reste une présence bénéfique — tel un jardin bien entretenu plutôt qu'une espèce invasive — devient
+                reste une présence bénéfique - tel un jardin bien entretenu plutôt qu'une espèce invasive - devient
                 vital. Je suis les avancées en recherche sur l'alignement, l'interprétabilité et une gouvernance réfléchie.
             </p>
         </div>

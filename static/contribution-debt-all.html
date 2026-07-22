@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deuda comparada — todas las puertas (2017–2026)</title>
+<title>Deuda comparada - todas las puertas (2017 - 2026)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -101,14 +101,14 @@
 </head>
 <body>
 <div class="container">
-  <h1>Deuda comparada — todas las puertas (2017–2026)</h1>
-  <p class="subtitle">Deuda acumulada a 5 años (FIFO) y pagos por puerta — visión consolidada</p>
+  <h1>Deuda comparada - todas las puertas (2017 - 2026)</h1>
+  <p class="subtitle">Deuda acumulada a 5 años (FIFO) y pagos por puerta - visión consolidada</p>
   <div class="method-note">
     <strong>Método:</strong> Cada puerta se calcula de forma independiente con asignación FIFO.
     Los pagos de cada año se aplican primero a la <em>deuda más antigua pendiente</em>.
     La deuda con más de 5 años de antigüedad se condona al cierre de cada año.
     La base de contribución esperada es la misma para todas las puertas.
-    <br><strong>P2–3–4</strong> actúan como una única unidad pagadora agrupada.
+    <br><strong>P2 - 3 - 4</strong> actúan como una única unidad pagadora agrupada.
     <strong>2026</strong>: año en curso (datos hasta marzo).
   </div>
 
@@ -145,7 +145,7 @@
   </div>
 
   <!-- ── Rolling debt table ── -->
-  <h2>Deuda acumulada 5 años — FIFO (€)</h2>
+  <h2>Deuda acumulada 5 años - FIFO (€)</h2>
   <div class="table-scroll">
     <table id="debt-table">
       <thead>
@@ -171,7 +171,7 @@
 // ── Data ─────────────────────────────────────────────────────────────────
 const YEARS = [2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
 
-// Expected contribution — same for every door
+// Expected contribution - same for every door
 const EXPECTED = [302.35, 600, 600, 114.71, 70.59, 511.76, 600, 600, 600, 150];
 
 // Members: label | colour | payments per year (aligned to YEARS)
@@ -179,7 +179,7 @@ const EXPECTED = [302.35, 600, 600, 114.71, 70.59, 511.76, 600, 600, 600, 150];
 const MEMBERS = [
   { id:'P1',    label:'Puerta 1',    color:'#2980b9',
     paid:[100, 550,    900, 60,    100, 250, 900,    300,    600,    300] },
-  { id:'P234',  label:'Puertas 2–4', color:'#8e44ad',
+  { id:'P234',  label:'Puertas 2 - 4', color:'#8e44ad',
     paid:[190, 538.33, 600, 93.33, 100, 350, 700,    400,    900,    150] },
   { id:'P5',    label:'Puerta 5',    color:'#27ae60',
     paid:[230, 579,    800, 60,    100, 350, 800,    300,    900,    300] },
@@ -256,7 +256,7 @@ YEARS.forEach((year, yi) => {
     const v = m.rows[yi].actual;
     const g = m.rows[yi].gap;
     const cls = v === 0 ? 'zero' : g > 0 ? '' : 'pos';
-    cells += `<td class="${cls}">${v > 0 ? '€'+v.toFixed(2) : '—'}</td>`;
+    cells += `<td class="${cls}">${v > 0 ? '€'+v.toFixed(2) : ' - '}</td>`;
   });
   cells += `<td class="bold">€${totalPaid.toFixed(2)}</td>`;
   tr.innerHTML = cells;
@@ -266,7 +266,7 @@ YEARS.forEach((year, yi) => {
 // Payment totals footer
 const payTotalRow = document.getElementById('pay-total-row');
 const grandTotalPaid = results.reduce((s,m)=>s+m.rows.reduce((a,r)=>a+r.actual,0),0);
-let payFoot = `<td class="year-col">Total</td><td>—</td>`;
+let payFoot = `<td class="year-col">Total</td><td> - </td>`;
 results.forEach(m => {
   const tot = m.rows.reduce((a,r)=>a+r.actual,0);
   payFoot += `<td>€${tot.toFixed(2)}</td>`;
@@ -283,7 +283,7 @@ YEARS.forEach((year, yi) => {
   results.forEach(m => {
     const d = m.rows[yi].rollingDebt;
     const cls = d > 300 ? 'neg' : d > 0 ? '' : 'zero';
-    cells += `<td class="${cls}">${d > 0 ? '€'+d.toFixed(2) : '—'}</td>`;
+    cells += `<td class="${cls}">${d > 0 ? '€'+d.toFixed(2) : ' - '}</td>`;
   });
   cells += `<td class="bold neg">€${totalDebt.toFixed(2)}</td>`;
   tr.innerHTML = cells;
