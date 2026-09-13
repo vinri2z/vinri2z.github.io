@@ -94,6 +94,112 @@
     font-size: 1.1em;
     margin-right: 4px;
   }
+  .fifo-animation-panel {
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px 20px 16px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border-top: 4px solid #8e44ad;
+  }
+  .fifo-animation-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .fifo-animation-heading h2 {
+    margin: 0;
+    color: #2c3e50;
+  }
+  .fifo-animation-intro {
+    color: #555;
+    font-size: clamp(0.74rem, 1.9vw, 0.84rem);
+    line-height: 1.45;
+    max-width: 760px;
+  }
+  .fifo-animation-phase {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f7f1fa;
+    color: #6c3483;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .fifo-animation-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin: 12px 0 6px;
+    color: #555;
+    font-size: 0.75rem;
+  }
+  .fifo-animation-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .fifo-animation-swatch {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+  }
+  .fifo-animation-swatch.debt { background: rgba(231, 76, 60, 0.78); }
+  .fifo-animation-swatch.year { background: rgba(52, 152, 219, 0.78); }
+  .fifo-animation-swatch.payment { background: #8e44ad; }
+  .fifo-animation-chart-wrap {
+    min-height: 300px;
+    position: relative;
+  }
+  .fifo-animation-status {
+    margin: 8px 0 10px;
+    padding: 8px 10px;
+    border-left: 4px solid #8e44ad;
+    border-radius: 0 6px 6px 0;
+    background: #f7f1fa;
+    color: #4a235a;
+    font-size: clamp(0.74rem, 1.9vw, 0.84rem);
+    line-height: 1.45;
+    min-height: 38px;
+  }
+  .fifo-animation-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .fifo-animation-controls button {
+    border: 1px solid #8e44ad;
+    border-radius: 6px;
+    padding: 7px 11px;
+    background: #fff;
+    color: #6c3483;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+  }
+  .fifo-animation-controls button:first-child {
+    background: #8e44ad;
+    color: #fff;
+  }
+  .fifo-animation-controls button:hover:not(:disabled) { filter: brightness(0.96); }
+  .fifo-animation-controls button:focus-visible {
+    outline: 3px solid rgba(142, 68, 173, 0.28);
+    outline-offset: 2px;
+  }
+  .fifo-animation-controls button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+  .fifo-animation-help {
+    margin-top: 9px;
+    color: #666;
+    font-size: 0.74rem;
+    line-height: 1.4;
+  }
 
   .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
@@ -150,6 +256,13 @@
     .chart-wrapper { padding: 10px 6px; min-height: 260px; }
     .snapshot-controls { align-items: stretch; flex-direction: column; }
     .snapshot-controls select { width: 100%; }
+    .fifo-animation-panel { padding: 14px 10px 12px; }
+    .fifo-animation-heading { flex-direction: column; gap: 6px; }
+    .fifo-animation-phase { align-self: flex-start; }
+    .fifo-animation-chart-wrap { min-height: 260px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fifo-animation-controls button { transition: none; }
   }
 </style>
 </head>
@@ -173,6 +286,44 @@
       <div class="fifo-callouts" id="fifo-callouts" role="note" aria-label="Aplicación FIFO de los pagos"></div>
     </div>
   </div>
+
+  <section class="fifo-animation-panel" id="fifo-animation-panel" aria-labelledby="fifo-animation-title">
+    <div class="fifo-animation-heading">
+      <div>
+        <h2 id="fifo-animation-title">Animación: el pago viaja a la deuda más antigua</h2>
+        <p class="fifo-animation-intro">
+          Las barras aparecen año a año. Cuando llega un pago, la animación se detiene:
+          el importe se desplaza hacia la deuda pendiente más antigua y la reduce.
+          No se queda en el año del pago.
+        </p>
+      </div>
+      <span class="fifo-animation-phase" id="fifo-animation-phase">Listo</span>
+    </div>
+    <div class="fifo-animation-legend" aria-label="Leyenda de la animación">
+      <span><i class="fifo-animation-swatch debt" aria-hidden="true"></i>Deuda pendiente</span>
+      <span><i class="fifo-animation-swatch year" aria-hidden="true"></i>Año que acaba de entrar</span>
+      <span><i class="fifo-animation-swatch payment" aria-hidden="true"></i>Pago en movimiento</span>
+    </div>
+    <div class="fifo-animation-chart-wrap">
+      <canvas
+        id="fifo-animation-chart"
+        role="img"
+        aria-label="Animación de la deuda pendiente por año de origen y de la aplicación FIFO de los pagos"
+      ></canvas>
+    </div>
+    <p class="fifo-animation-status" id="fifo-animation-status" aria-live="polite">
+      Listo. Pulsa «Reproducir animación» para seguir la deuda año a año.
+    </p>
+    <div class="fifo-animation-controls" aria-label="Controles de la animación">
+      <button id="fifo-animation-play" type="button" title="Reproducir o continuar la animación">▶ Reproducir animación</button>
+      <button id="fifo-animation-pause" type="button" title="Pausar la animación" disabled>⏸ Pausar</button>
+      <button id="fifo-animation-reset" type="button" title="Volver al inicio de la animación">↺ Reiniciar</button>
+    </div>
+    <p class="fifo-animation-help">
+      La pausa automática aparece justo antes de cada pago. En 2023, los 200 € se desplazan a 2018;
+      en 2024, los 812 € siguen hacia las deudas más antiguas que queden.
+    </p>
+  </section>
 
   <div class="table-scroll">
   <table id="data-table">
@@ -327,6 +478,98 @@ function computeFIFO(rawData) {
     ...result,
     netResidual: netResidualByYear[result.year] || 0,
   }));
+}
+
+function buildFifoAnimationTimeline(rawData) {
+  const years = rawData.map(({ year }) => year);
+  const ledger = new Map();
+  const timeline = [];
+  const epsilon = 0.001;
+  const snapshot = () => Object.fromEntries(years.map(year => [
+    year,
+    Math.max(0, ledger.get(year) || 0),
+  ]));
+
+  rawData.forEach(({ year, expected, actual }) => {
+    ledger.set(year, expected);
+    timeline.push({
+      type: 'accrual',
+      year,
+      expected,
+      ledger: snapshot(),
+      message: `Año ${year}: se añade ${formatAnimationMoney(expected)} de deuda.`,
+    });
+
+    if (actual > epsilon) {
+      timeline.push({
+        type: 'payment-pause',
+        year,
+        payment: actual,
+        ledger: snapshot(),
+        message: `Pausa automática: llega el pago de ${year}, ${formatAnimationMoney(actual)}.`,
+      });
+
+      let remaining = actual;
+      for (const targetYear of [...ledger.keys()].sort((a, b) => a - b)) {
+        if (remaining <= epsilon) break;
+        const debtBefore = ledger.get(targetYear) || 0;
+        if (debtBefore <= epsilon) continue;
+
+        const amount = Math.min(remaining, debtBefore);
+        const ledgerBefore = snapshot();
+        ledger.set(targetYear, debtBefore - amount);
+        remaining = Math.max(0, remaining - amount);
+        const ledgerAfter = snapshot();
+        timeline.push({
+          type: 'payment-allocation',
+          year,
+          paymentYear: year,
+          targetYear,
+          amount,
+          paymentTotal: actual,
+          paymentRemaining: remaining,
+          ledger: ledgerAfter,
+          ledgerBefore,
+          ledgerAfter,
+          message: `Pago ${year}: ${formatAnimationMoney(amount)} se aplica a la deuda de ${targetYear}.`,
+        });
+      }
+
+      if (remaining > epsilon) {
+        timeline.push({
+          type: 'payment-surplus',
+          year,
+          amount: remaining,
+          ledger: snapshot(),
+          message: `Pago ${year}: quedan ${formatAnimationMoney(remaining)} sin deuda anterior que cubrir.`,
+        });
+      }
+    }
+
+    const expiryYear = year - 5;
+    for (const [originYear, debt] of [...ledger.entries()]) {
+      if (originYear > expiryYear || debt <= epsilon) continue;
+      const ledgerBefore = snapshot();
+      ledger.set(originYear, 0);
+      const ledgerAfter = snapshot();
+      timeline.push({
+        type: 'forgiven',
+        year,
+        originYear,
+        amount: debt,
+        ledger: ledgerAfter,
+        ledgerBefore,
+        ledgerAfter,
+        message: `Al cerrar ${year}: se condonan ${formatAnimationMoney(debt)} de la deuda de ${originYear}.`,
+      });
+    }
+
+    for (const [originYear, debt] of [...ledger.entries()]) {
+      if (debt <= epsilon) ledger.delete(originYear);
+    }
+  });
+
+  return timeline;
 }
 
 function snapshotHref(snapshotId) {
@@ -491,6 +734,390 @@ function formatChartAmount(value) {
   return `${Math.round(Number(value))} €`;
 }
 
+function formatAnimationMoney(value) {
+  return `€${Number(value).toFixed(2)}`;
+}
+
+const FIFO_ANIMATION_DURATIONS = Object.freeze({
+  accrual: 700,
+  'payment-pause': 1500,
+  'payment-allocation': 1200,
+  'payment-surplus': 900,
+  forgiven: 950,
+});
+
+let animationChart = null;
+let animationRawData = [];
+let animationYears = [];
+let animationTimeline = [];
+let animationIndex = 0;
+let animationRunning = false;
+let animationCurrentEvent = null;
+let animationProgress = 0;
+let animationFrame = null;
+
+const fifoAnimationPanel = document.getElementById('fifo-animation-panel');
+const fifoAnimationCanvas = document.getElementById('fifo-animation-chart');
+const fifoAnimationPhase = document.getElementById('fifo-animation-phase');
+const fifoAnimationStatus = document.getElementById('fifo-animation-status');
+const fifoAnimationPlay = document.getElementById('fifo-animation-play');
+const fifoAnimationPause = document.getElementById('fifo-animation-pause');
+const fifoAnimationReset = document.getElementById('fifo-animation-reset');
+const reducedMotion = Boolean(
+  window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+);
+
+function animationNow() {
+  return typeof performance !== 'undefined' && performance.now
+    ? performance.now()
+    : Date.now();
+}
+
+function animationDuration(event) {
+  return reducedMotion ? 1 : (FIFO_ANIMATION_DURATIONS[event.type] || 850);
+}
+
+function describeAnimationEvent(event) {
+  if (!event) return 'Listo. Pulsa «Reproducir animación» para seguir la deuda año a año.';
+
+  if (event.type === 'accrual') {
+    return `Año ${event.year}: se añade ${formatAnimationMoney(event.expected)} de deuda.`;
+  }
+  if (event.type === 'payment-pause') {
+    return `Pausa automática: llega el pago de ${event.year} (${formatAnimationMoney(event.payment)}). Se aplicará a la deuda más antigua, no al propio año.`;
+  }
+  if (event.type === 'payment-allocation') {
+    const before = event.ledgerBefore[event.targetYear] || 0;
+    const after = event.ledgerAfter[event.targetYear] || 0;
+    const remaining = event.paymentRemaining > 0.001
+      ? ` Quedan ${formatAnimationMoney(event.paymentRemaining)} por repartir.`
+      : '';
+    return `Pago ${event.paymentYear}: ${formatAnimationMoney(event.amount)} se desplaza a la deuda de ${event.targetYear}. Baja de ${formatAnimationMoney(before)} a ${formatAnimationMoney(after)}.${remaining}`;
+  }
+  if (event.type === 'payment-surplus') {
+    return `Pago ${event.year}: sobran ${formatAnimationMoney(event.amount)} después de cubrir la deuda anterior.`;
+  }
+  if (event.type === 'forgiven') {
+    return `Al cerrar ${event.year}: se condonan ${formatAnimationMoney(event.amount)} de la deuda de ${event.originYear}, fuera de la ventana de 5 años.`;
+  }
+  return event.message || '';
+}
+
+function animationPhase(event) {
+  if (!event) return 'Listo';
+  if (event.type === 'payment-pause') return 'Pausa automática';
+  if (event.type === 'payment-allocation') return 'Aplicando pago';
+  if (event.type === 'forgiven') return 'Cierre de ventana';
+  if (event.type === 'payment-surplus') return 'Pago completado';
+  return 'Acumulando deuda';
+}
+
+function setAnimationStatus(text) {
+  if (fifoAnimationStatus) fifoAnimationStatus.textContent = text;
+}
+
+function setAnimationPhase(text) {
+  if (fifoAnimationPhase) fifoAnimationPhase.textContent = text;
+}
+
+function animationColors(event, ledger) {
+  const base = 'rgba(231, 76, 60, 0.78)';
+  return animationYears.map(year => {
+    if (!((ledger[year] || 0) > 0.001)) return 'rgba(231, 76, 60, 0.10)';
+    if (event?.type === 'payment-allocation' && event.targetYear === year) return '#8e44ad';
+    if (event?.type === 'payment-pause' && event.year === year) return 'rgba(46, 204, 113, 0.78)';
+    if (event?.type === 'accrual' && event.year === year) return 'rgba(52, 152, 219, 0.78)';
+    return base;
+  });
+}
+
+function interpolateAnimationLedger(before, after, progress) {
+  return Object.fromEntries(animationYears.map(year => [
+    year,
+    (before[year] || 0) + ((after[year] || 0) - (before[year] || 0)) * progress,
+  ]));
+}
+
+function drawAnimationBadge(ctx, text, centerX, y, maxWidth, color, background) {
+  const height = 22;
+  const width = Math.min(maxWidth, ctx.measureText(text).width + 16);
+  const x = Math.max(4, centerX - width / 2);
+  roundedRectPath(ctx, x, y, width, height, 5);
+  ctx.fillStyle = background;
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + 8, y + height / 2);
+}
+
+const fifoAnimationFlowPlugin = {
+  id: 'fifoAnimationFlow',
+  afterDatasetsDraw(chart) {
+    const view = chart.$fifoAnimationView;
+    const { chartArea, ctx } = chart;
+    const event = view?.event;
+    const meta = chart.getDatasetMeta(0);
+    if (!event || !chartArea || !ctx || !meta?.data) return;
+
+    const fontSize = chart.width < 560 ? 9 : 10;
+    const color = '#8e44ad';
+    ctx.save();
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+    ctx.lineWidth = 1.8;
+
+    if (event.type === 'payment-pause') {
+      const paymentIndex = chart.data.labels.indexOf(event.year);
+      const paymentBar = meta.data[paymentIndex];
+      if (paymentBar) {
+        drawAnimationBadge(
+          ctx,
+          `Pausa automática · pago ${event.year}`,
+          paymentBar.x,
+          chartArea.top + 5,
+          chartArea.right - chartArea.left - 8,
+          color,
+          'rgba(247, 241, 250, 0.96)',
+        );
+      }
+    }
+
+    if (event.type === 'payment-allocation') {
+      const source = meta.data[chart.data.labels.indexOf(event.paymentYear)];
+      const target = meta.data[chart.data.labels.indexOf(event.targetYear)];
+      if (!source || !target) {
+        ctx.restore();
+        return;
+      }
+
+      const startY = Math.max(chartArea.top + 52, source.y - 8);
+      const endY = Math.max(chartArea.top + 52, target.y - 8);
+      const laneY = Math.max(chartArea.top + 28, Math.min(startY, endY) - 30);
+      const progress = Math.max(0, Math.min(1, view.progress || 0));
+
+      ctx.strokeStyle = color;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(source.x, startY);
+      ctx.bezierCurveTo(source.x, laneY, target.x, laneY, target.x, endY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      drawArrowHead(ctx, target.x, endY, endY >= laneY ? Math.PI / 2 : -Math.PI / 2, color);
+
+      const tokenX = source.x + (target.x - source.x) * progress;
+      const tokenY = startY + (endY - startY) * progress - 18 * Math.sin(Math.PI * progress);
+      const tokenText = `Pago ${event.paymentYear} · ${formatAnimationMoney(event.amount)}`;
+      const availableWidth = chartArea.right - chartArea.left - 8;
+      const tokenWidth = Math.min(availableWidth, ctx.measureText(tokenText).width + 16);
+      const tokenXStart = Math.max(
+        chartArea.left + 4,
+        Math.min(tokenX - tokenWidth / 2, chartArea.right - tokenWidth - 4),
+      );
+      roundedRectPath(ctx, tokenXStart, tokenY - 12, tokenWidth, 24, 6);
+      ctx.fillStyle = 'rgba(142, 68, 173, 0.97)';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tokenText, tokenXStart + 8, tokenY);
+    }
+
+    ctx.restore();
+  },
+};
+
+function animationChartConfig(years) {
+  const emptyData = years.map(() => 0);
+  return {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [{
+        label: 'Deuda pendiente por año de origen (€)',
+        data: emptyData,
+        backgroundColor: years.map(() => 'rgba(231, 76, 60, 0.10)'),
+        borderColor: years.map(() => 'rgba(231, 76, 60, 0.30)'),
+        borderWidth: 1,
+        borderRadius: 4,
+        barPercentage: 0.72,
+        categoryPercentage: 0.82,
+        maxBarThickness: 48,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: context => `Deuda ${context.label}: ${formatAnimationMoney(context.parsed.y)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 12 } },
+          title: { display: true, text: 'Año de origen de la deuda' },
+        },
+        y: {
+          min: MONEY_SCALE.min,
+          max: MONEY_SCALE.max,
+          title: { display: true, text: 'Deuda pendiente (€)' },
+          grid: { color: 'rgba(0,0,0,0.06)' },
+          ticks: { stepSize: MONEY_SCALE.stepSize, font: { size: 12 }, callback: formatChartMoney },
+        },
+      },
+    },
+    plugins: [fifoAnimationFlowPlugin],
+  };
+}
+
+function updateFifoAnimationChart(ledger, event = null, progress = 0) {
+  if (!fifoAnimationCanvas) return;
+  const colors = animationColors(event, ledger);
+  if (!animationChart) {
+    const config = animationChartConfig(animationYears);
+    animationChart = new Chart(fifoAnimationCanvas.getContext('2d'), config);
+  }
+  animationChart.data.labels = animationYears;
+  animationChart.data.datasets[0].data = animationYears.map(year => ledger[year] || 0);
+  animationChart.data.datasets[0].backgroundColor = colors;
+  animationChart.data.datasets[0].borderColor = colors;
+  animationChart.$fifoAnimationView = { event, progress, ledger };
+  animationChart.update('none');
+}
+
+function setAnimationButtons() {
+  if (fifoAnimationPlay) fifoAnimationPlay.disabled = animationRunning;
+  if (fifoAnimationPause) fifoAnimationPause.disabled = !animationRunning;
+}
+
+function cancelFifoAnimationFrame() {
+  if (animationFrame !== null && typeof cancelAnimationFrame === 'function') {
+    cancelAnimationFrame(animationFrame);
+  }
+  animationFrame = null;
+}
+
+function resetFifoAnimation(rawData = animationRawData) {
+  if (!fifoAnimationPanel || !fifoAnimationCanvas || !rawData?.length) return;
+  animationRawData = rawData;
+  animationYears = rawData.map(({ year }) => year);
+  animationTimeline = buildFifoAnimationTimeline(rawData);
+  animationIndex = 0;
+  animationRunning = false;
+  animationCurrentEvent = null;
+  animationProgress = 0;
+  cancelFifoAnimationFrame();
+  const emptyLedger = Object.fromEntries(animationYears.map(year => [year, 0]));
+  updateFifoAnimationChart(emptyLedger);
+  setAnimationPhase('Listo');
+  setAnimationStatus('Listo. Pulsa «Reproducir animación» para seguir la deuda año a año.');
+  setAnimationButtons();
+}
+
+function finishFifoAnimation() {
+  animationRunning = false;
+  animationCurrentEvent = null;
+  animationProgress = 0;
+  setAnimationPhase('Finalizado');
+  setAnimationStatus('Animación finalizada. Pulsa «Reiniciar» para volver a ver cómo se aplican los pagos.');
+  setAnimationButtons();
+}
+
+function beginFifoAnimationEvent(event) {
+  animationCurrentEvent = event;
+  animationProgress = 0;
+  const ledger = event.type === 'payment-allocation' ? event.ledgerBefore : event.ledger;
+  updateFifoAnimationChart(ledger, event, 0);
+  setAnimationPhase(animationPhase(event));
+  setAnimationStatus(describeAnimationEvent(event));
+}
+
+function runCurrentFifoAnimationEvent() {
+  if (!animationRunning) return;
+  if (animationIndex >= animationTimeline.length) {
+    finishFifoAnimation();
+    return;
+  }
+
+  const event = animationCurrentEvent || animationTimeline[animationIndex];
+  if (!animationCurrentEvent) beginFifoAnimationEvent(event);
+  const duration = animationDuration(event);
+  const startingProgress = animationProgress;
+  const startedAt = animationNow();
+
+  const frame = now => {
+    if (!animationRunning) {
+      animationFrame = null;
+      return;
+    }
+    animationProgress = Math.min(1, startingProgress + (now - startedAt) / duration);
+    const ledger = event.type === 'payment-allocation'
+      ? interpolateAnimationLedger(event.ledgerBefore, event.ledgerAfter, animationProgress)
+      : event.ledger;
+    updateFifoAnimationChart(ledger, event, animationProgress);
+
+    if (animationProgress >= 1) {
+      animationFrame = null;
+      animationIndex += 1;
+      animationCurrentEvent = null;
+      animationProgress = 0;
+      if (animationIndex < animationTimeline.length) {
+        animationFrame = requestAnimationFrame(() => {
+          animationFrame = null;
+          runCurrentFifoAnimationEvent();
+        });
+      } else {
+        finishFifoAnimation();
+      }
+      return;
+    }
+    animationFrame = requestAnimationFrame(frame);
+  };
+
+  animationFrame = requestAnimationFrame(frame);
+}
+
+function playFifoAnimation() {
+  if (!fifoAnimationPanel || animationRunning) return;
+  if (animationIndex >= animationTimeline.length) {
+    setAnimationStatus('Animación finalizada. Pulsa «Reiniciar» para volver a empezar.');
+    return;
+  }
+  animationRunning = true;
+  setAnimationButtons();
+  runCurrentFifoAnimationEvent();
+}
+
+function pauseFifoAnimation() {
+  if (!animationRunning) return;
+  animationRunning = false;
+  cancelFifoAnimationFrame();
+  setAnimationPhase('En pausa');
+  const detail = animationCurrentEvent ? describeAnimationEvent(animationCurrentEvent) : 'La animación está en pausa.';
+  setAnimationStatus(`En pausa. ${detail} Pulsa «Reproducir animación» para continuar.`);
+  setAnimationButtons();
+}
+
+function renderFifoAnimation(rawData) {
+  resetFifoAnimation(rawData);
+}
+
+if (fifoAnimationPlay) fifoAnimationPlay.addEventListener('click', playFifoAnimation);
+if (fifoAnimationPause) fifoAnimationPause.addEventListener('click', pauseFifoAnimation);
+if (fifoAnimationReset) fifoAnimationReset.addEventListener('click', () => resetFifoAnimation());
+
 function applyResponsive() {
   if (!chart) return;
   const width = chart.width || 600;
@@ -647,6 +1274,7 @@ function renderSnapshot(snapshotId, updateUrl = false) {
   renderTable(snapshot, activeResults);
   renderFifoCallouts(activeResults);
   renderChart(activeResults);
+  renderFifoAnimation(snapshot.data);
   snapshotLink.href = snapshotHref(snapshot.id);
   if (updateUrl) history.replaceState({}, '', snapshotLink.href);
 }
