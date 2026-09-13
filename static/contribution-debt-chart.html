@@ -148,9 +148,10 @@
     height: 11px;
     border-radius: 3px;
   }
+  .fifo-animation-swatch.expected { background: rgba(52, 152, 219, 0.78); }
+  .fifo-animation-swatch.paid { background: rgba(46, 204, 113, 0.78); }
   .fifo-animation-swatch.debt { background: rgba(231, 76, 60, 0.78); }
-  .fifo-animation-swatch.year { background: rgba(52, 152, 219, 0.78); }
-  .fifo-animation-swatch.payment { background: #8e44ad; }
+  .fifo-animation-swatch.transfer { background: #8e44ad; }
   .fifo-animation-chart-wrap {
     min-height: 300px;
     position: relative;
@@ -287,28 +288,30 @@
     </div>
   </div>
 
-  <section class="fifo-animation-panel" id="fifo-animation-panel" aria-labelledby="fifo-animation-title">
+  <section class="fifo-animation-panel" id="fifo-animation-panel" aria-labelledby="fifo-animation-title" hidden>
     <div class="fifo-animation-heading">
       <div>
         <h2 id="fifo-animation-title">Animación: el pago viaja a la deuda más antigua</h2>
         <p class="fifo-animation-intro">
-          Las barras aparecen año a año. Cuando llega un pago, la animación se detiene:
-          el importe se desplaza hacia la deuda pendiente más antigua y la reduce.
-          No se queda en el año del pago.
+          Las barras aparecen año a año. Se comparan el importe esperado, el pago todavía
+          disponible y la diferencia/deuda neta después de FIFO. Cuando llega un pago,
+          la animación se detiene: el importe se desplaza hacia la deuda pendiente más
+          antigua y la reduce; por eso la barra de pago también disminuye.
         </p>
       </div>
       <span class="fifo-animation-phase" id="fifo-animation-phase">Listo</span>
     </div>
     <div class="fifo-animation-legend" aria-label="Leyenda de la animación">
-      <span><i class="fifo-animation-swatch debt" aria-hidden="true"></i>Deuda pendiente</span>
-      <span><i class="fifo-animation-swatch year" aria-hidden="true"></i>Año que acaba de entrar</span>
-      <span><i class="fifo-animation-swatch payment" aria-hidden="true"></i>Pago en movimiento</span>
+      <span><i class="fifo-animation-swatch expected" aria-hidden="true"></i>Esperado (€)</span>
+      <span><i class="fifo-animation-swatch paid" aria-hidden="true"></i>Pagado / disponible (€)</span>
+      <span><i class="fifo-animation-swatch debt" aria-hidden="true"></i>Diferencia / deuda neta FIFO (€)</span>
+      <span><i class="fifo-animation-swatch transfer" aria-hidden="true"></i>Transferencia FIFO</span>
     </div>
     <div class="fifo-animation-chart-wrap">
       <canvas
         id="fifo-animation-chart"
         role="img"
-        aria-label="Animación de la deuda pendiente por año de origen y de la aplicación FIFO de los pagos"
+        aria-label="Animación de los importes esperado, pagado disponible y diferencia o deuda neta por año, con aplicación FIFO de los pagos"
       ></canvas>
     </div>
     <p class="fifo-animation-status" id="fifo-animation-status" aria-live="polite">
@@ -321,7 +324,8 @@
     </div>
     <p class="fifo-animation-help">
       La pausa automática aparece justo antes de cada pago. En 2023, los 200 € se desplazan a 2018;
-      en 2024, los 812 € siguen hacia las deudas más antiguas que queden.
+      en 2024, los 812 € empiezan en verde porque superan los 600 € esperados y se reducen hasta 0
+      al desplazarse FIFO a las deudas más antiguas; al quedar por debajo de lo esperado, el pago se muestra en rojo.
     </p>
   </section>
 
@@ -416,6 +420,7 @@ const SNAPSHOTS = [
 const snapshotById = Object.fromEntries(SNAPSHOTS.map(snapshot => [snapshot.id, snapshot]));
 const defaultSnapshotId = '2026-09-16';
 const tooltipsEnabled = new URLSearchParams(window.location.search).get('tooltips') === '1';
+const fifoAnimationEnabled = new URLSearchParams(window.location.search).get('animation') === '1';
 const snapshotSelect = document.getElementById('snapshot-select');
 const snapshotLink = document.getElementById('snapshot-link');
 const tbody = document.querySelector('#data-table tbody');
@@ -483,11 +488,17 @@ function computeFIFO(rawData) {
 function buildFifoAnimationTimeline(rawData) {
   const years = rawData.map(({ year }) => year);
   const ledger = new Map();
+  const paidApplied = new Map();
+  const forgiven = new Map();
   const timeline = [];
   const epsilon = 0.001;
   const snapshot = () => Object.fromEntries(years.map(year => [
     year,
     Math.max(0, ledger.get(year) || 0),
+  ]));
+  const amountSnapshot = amounts => Object.fromEntries(years.map(year => [
+    year,
+    Math.max(0, amounts.get(year) || 0),
   ]));
 
   rawData.forEach(({ year, expected, actual }) => {
@@ -497,6 +508,8 @@ function buildFifoAnimationTimeline(rawData) {
       year,
       expected,
       ledger: snapshot(),
+      paidApplied: amountSnapshot(paidApplied),
+      forgiven: amountSnapshot(forgiven),
       message: `Año ${year}: se añade ${formatAnimationMoney(expected)} de deuda.`,
     });
 
@@ -506,6 +519,8 @@ function buildFifoAnimationTimeline(rawData) {
         year,
         payment: actual,
         ledger: snapshot(),
+        paidApplied: amountSnapshot(paidApplied),
+        forgiven: amountSnapshot(forgiven),
         message: `Pausa automática: llega el pago de ${year}, ${formatAnimationMoney(actual)}.`,
       });
 
@@ -517,9 +532,12 @@ function buildFifoAnimationTimeline(rawData) {
 
         const amount = Math.min(remaining, debtBefore);
         const ledgerBefore = snapshot();
+        const paidAppliedBefore = amountSnapshot(paidApplied);
         ledger.set(targetYear, debtBefore - amount);
+        paidApplied.set(targetYear, (paidApplied.get(targetYear) || 0) + amount);
         remaining = Math.max(0, remaining - amount);
         const ledgerAfter = snapshot();
+        const paidAppliedAfter = amountSnapshot(paidApplied);
         timeline.push({
           type: 'payment-allocation',
           year,
@@ -527,7 +545,11 @@ function buildFifoAnimationTimeline(rawData) {
           targetYear,
           amount,
           paymentTotal: actual,
+          paymentRemainingBefore: remaining + amount,
           paymentRemaining: remaining,
+          paidAppliedBefore,
+          paidAppliedAfter,
+          forgiven: amountSnapshot(forgiven),
           ledger: ledgerAfter,
           ledgerBefore,
           ledgerAfter,
@@ -539,7 +561,12 @@ function buildFifoAnimationTimeline(rawData) {
         timeline.push({
           type: 'payment-surplus',
           year,
+          paymentYear: year,
           amount: remaining,
+          paymentRemainingBefore: remaining,
+          paymentRemaining: 0,
+          paidApplied: amountSnapshot(paidApplied),
+          forgiven: amountSnapshot(forgiven),
           ledger: snapshot(),
           message: `Pago ${year}: quedan ${formatAnimationMoney(remaining)} sin deuda anterior que cubrir.`,
         });
@@ -550,13 +577,19 @@ function buildFifoAnimationTimeline(rawData) {
     for (const [originYear, debt] of [...ledger.entries()]) {
       if (originYear > expiryYear || debt <= epsilon) continue;
       const ledgerBefore = snapshot();
+      const forgivenBefore = amountSnapshot(forgiven);
       ledger.set(originYear, 0);
+      forgiven.set(originYear, (forgiven.get(originYear) || 0) + debt);
       const ledgerAfter = snapshot();
+      const forgivenAfter = amountSnapshot(forgiven);
       timeline.push({
         type: 'forgiven',
         year,
         originYear,
         amount: debt,
+        paidApplied: amountSnapshot(paidApplied),
+        forgivenBefore,
+        forgivenAfter,
         ledger: ledgerAfter,
         ledgerBefore,
         ledgerAfter,
@@ -727,7 +760,8 @@ function chartMax() {
 }
 
 function formatChartMoney(value) {
-  return `€${Math.round(Number(value))}`;
+  const amount = Math.round(Number(value));
+  return amount < 0 ? `-€${Math.abs(amount)}` : `€${amount}`;
 }
 
 function formatChartAmount(value) {
@@ -735,7 +769,8 @@ function formatChartAmount(value) {
 }
 
 function formatAnimationMoney(value) {
-  return `€${Number(value).toFixed(2)}`;
+  const amount = Number(value);
+  return amount < 0 ? `-€${Math.abs(amount).toFixed(2)}` : `€${amount.toFixed(2)}`;
 }
 
 const FIFO_ANIMATION_DURATIONS = Object.freeze({
@@ -766,6 +801,7 @@ const fifoAnimationReset = document.getElementById('fifo-animation-reset');
 const reducedMotion = Boolean(
   window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
 );
+if (fifoAnimationPanel) fifoAnimationPanel.hidden = !fifoAnimationEnabled;
 
 function animationNow() {
   return typeof performance !== 'undefined' && performance.now
@@ -789,10 +825,12 @@ function describeAnimationEvent(event) {
   if (event.type === 'payment-allocation') {
     const before = event.ledgerBefore[event.targetYear] || 0;
     const after = event.ledgerAfter[event.targetYear] || 0;
+    const paidBefore = event.paymentRemainingBefore ?? (event.paymentRemaining + event.amount);
+    const paidAfter = event.paymentRemaining ?? 0;
     const remaining = event.paymentRemaining > 0.001
       ? ` Quedan ${formatAnimationMoney(event.paymentRemaining)} por repartir.`
       : '';
-    return `Pago ${event.paymentYear}: ${formatAnimationMoney(event.amount)} se desplaza a la deuda de ${event.targetYear}. Baja de ${formatAnimationMoney(before)} a ${formatAnimationMoney(after)}.${remaining}`;
+    return `Pago ${event.paymentYear}: ${formatAnimationMoney(event.amount)} se desplaza a la deuda de ${event.targetYear}. Baja de ${formatAnimationMoney(before)} a ${formatAnimationMoney(after)}; la barra «Pagado / disponible» baja de ${formatAnimationMoney(paidBefore)} a ${formatAnimationMoney(paidAfter)}.${remaining}`;
   }
   if (event.type === 'payment-surplus') {
     return `Pago ${event.year}: sobran ${formatAnimationMoney(event.amount)} después de cubrir la deuda anterior.`;
@@ -820,15 +858,104 @@ function setAnimationPhase(text) {
   if (fifoAnimationPhase) fifoAnimationPhase.textContent = text;
 }
 
-function animationColors(event, ledger) {
-  const base = 'rgba(231, 76, 60, 0.78)';
-  return animationYears.map(year => {
-    if (!((ledger[year] || 0) > 0.001)) return 'rgba(231, 76, 60, 0.10)';
-    if (event?.type === 'payment-allocation' && event.targetYear === year) return '#8e44ad';
-    if (event?.type === 'payment-pause' && event.year === year) return 'rgba(46, 204, 113, 0.78)';
-    if (event?.type === 'accrual' && event.year === year) return 'rgba(52, 152, 219, 0.78)';
-    return base;
+function expectedAnimationBars(event) {
+  const currentYear = event?.year;
+  return Object.fromEntries(animationRawData.map(({ year, expected }) => [
+    year,
+    event && year <= currentYear ? expected : 0,
+  ]));
+}
+
+function interpolateAnimationMap(before, after, progress) {
+  const easedProgress = Math.max(0, Math.min(1, progress));
+  return Object.fromEntries(animationYears.map(year => [
+    year,
+    (before?.[year] || 0) + ((after?.[year] || 0) - (before?.[year] || 0)) * easedProgress,
+  ]));
+}
+
+function paymentAnimationBars(event, progress = 0) {
+  if (!event) return Object.fromEntries(animationYears.map(year => [year, 0]));
+
+  if (event.type === 'payment-pause') {
+    const bars = Object.fromEntries(animationYears.map(year => [year, event.paidApplied?.[year] || 0]));
+    bars[event.year] = (bars[event.year] || 0) + event.payment;
+    return bars;
+  }
+
+  if (event.type === 'payment-allocation') {
+    const bars = interpolateAnimationMap(event.paidAppliedBefore, event.paidAppliedAfter, progress);
+    const before = Number(event.paymentRemainingBefore ?? event.paymentRemaining ?? 0);
+    const after = Number(event.paymentRemaining ?? 0);
+    const easedProgress = Math.max(0, Math.min(1, progress));
+    bars[event.paymentYear] = (bars[event.paymentYear] || 0)
+      + before + (after - before) * easedProgress;
+    return bars;
+  }
+
+  if (event.type === 'payment-surplus') {
+    const bars = Object.fromEntries(animationYears.map(year => [year, event.paidApplied?.[year] || 0]));
+    const before = Number(event.paymentRemainingBefore ?? event.paymentRemaining ?? 0);
+    const after = Number(event.paymentRemaining ?? 0);
+    const easedProgress = Math.max(0, Math.min(1, progress));
+    bars[event.paymentYear] = (bars[event.paymentYear] || 0)
+      + before + (after - before) * easedProgress;
+    return bars;
+  }
+
+  return Object.fromEntries(animationYears.map(year => [year, event.paidApplied?.[year] || 0]));
+}
+
+function forgivenAnimationBars(event, progress = 0) {
+  if (!event) return Object.fromEntries(animationYears.map(year => [year, 0]));
+  if (event.type === 'forgiven') return interpolateAnimationMap(event.forgivenBefore, event.forgivenAfter, progress);
+  return Object.fromEntries(animationYears.map(year => [year, event.forgiven?.[year] || 0]));
+}
+
+function differenceAnimationBars(expected, paid, forgiven) {
+  // FIFO means the paid amount can live on an older origin year. The
+  // difference therefore subtracts applied payments and condoned debt.
+  return Object.fromEntries(animationYears.map(year => [
+    year,
+    (expected[year] || 0) - (paid[year] || 0) - (forgiven[year] || 0),
+  ]));
+}
+
+function animationColors(event, expected, paid, difference) {
+  const expectedBackground = animationYears.map(() => 'rgba(52, 152, 219, 0.65)');
+  const expectedBorder = animationYears.map(() => 'rgba(52, 152, 219, 1)');
+  const paidBackground = [];
+  const paidBorder = [];
+  const debtBackground = [];
+  const debtBorder = [];
+  const epsilon = 0.001;
+
+  animationYears.forEach(year => {
+    const expectedValue = expected[year] || 0;
+    const paidValue = paid[year] || 0;
+    const differenceValue = difference[year] || 0;
+    const paidIsAboveExpected = paidValue + epsilon >= expectedValue && paidValue > epsilon;
+    const paidColor = paidIsAboveExpected ? '#2ecc71' : '#e74c3c';
+
+    paidBackground.push(paidValue > epsilon ? `${paidColor}c7` : 'rgba(149, 165, 166, 0.10)');
+    paidBorder.push(paidValue > epsilon ? paidColor : 'rgba(149, 165, 166, 0.28)');
+
+    if (event?.type === 'payment-allocation' && event.targetYear === year && differenceValue > epsilon) {
+      debtBackground.push('#8e44ad');
+      debtBorder.push('#6c3483');
+    } else if (differenceValue < -epsilon) {
+      debtBackground.push('rgba(46, 204, 113, 0.78)');
+      debtBorder.push('#27ae60');
+    } else if (differenceValue > epsilon) {
+      debtBackground.push('rgba(231, 76, 60, 0.78)');
+      debtBorder.push('#c0392b');
+    } else {
+      debtBackground.push('rgba(46, 204, 113, 0.14)');
+      debtBorder.push('rgba(39, 174, 96, 0.45)');
+    }
   });
+
+  return { expectedBackground, expectedBorder, paidBackground, paidBorder, debtBackground, debtBorder };
 }
 
 function interpolateAnimationLedger(before, after, progress) {
@@ -860,8 +987,9 @@ const fifoAnimationFlowPlugin = {
     const view = chart.$fifoAnimationView;
     const { chartArea, ctx } = chart;
     const event = view?.event;
-    const meta = chart.getDatasetMeta(0);
-    if (!event || !chartArea || !ctx || !meta?.data) return;
+    const paidMeta = chart.getDatasetMeta(1);
+    const debtMeta = chart.getDatasetMeta(2);
+    if (!event || !chartArea || !ctx || !paidMeta?.data || !debtMeta?.data) return;
 
     const fontSize = chart.width < 560 ? 9 : 10;
     const color = '#8e44ad';
@@ -871,7 +999,7 @@ const fifoAnimationFlowPlugin = {
 
     if (event.type === 'payment-pause') {
       const paymentIndex = chart.data.labels.indexOf(event.year);
-      const paymentBar = meta.data[paymentIndex];
+      const paymentBar = paidMeta.data[paymentIndex];
       if (paymentBar) {
         drawAnimationBadge(
           ctx,
@@ -886,8 +1014,8 @@ const fifoAnimationFlowPlugin = {
     }
 
     if (event.type === 'payment-allocation') {
-      const source = meta.data[chart.data.labels.indexOf(event.paymentYear)];
-      const target = meta.data[chart.data.labels.indexOf(event.targetYear)];
+      const source = paidMeta.data[chart.data.labels.indexOf(event.paymentYear)];
+      const target = debtMeta.data[chart.data.labels.indexOf(event.targetYear)];
       if (!source || !target) {
         ctx.restore();
         return;
@@ -932,23 +1060,59 @@ const fifoAnimationFlowPlugin = {
   },
 };
 
-function animationChartConfig(years) {
+function animationChartScale(rawData) {
+  const largestValue = rawData.reduce((maximum, row) => Math.max(maximum, row.expected, row.actual), 0);
+  const max = Math.max(
+    MONEY_SCALE.stepSize * 3,
+    Math.ceil(largestValue / MONEY_SCALE.stepSize) * MONEY_SCALE.stepSize,
+  );
+  return { min: -max, max, stepSize: MONEY_SCALE.stepSize };
+}
+
+function animationChartConfig(years, scale) {
   const emptyData = years.map(() => 0);
   return {
     type: 'bar',
     data: {
       labels: years,
-      datasets: [{
-        label: 'Deuda pendiente por año de origen (€)',
-        data: emptyData,
-        backgroundColor: years.map(() => 'rgba(231, 76, 60, 0.10)'),
-        borderColor: years.map(() => 'rgba(231, 76, 60, 0.30)'),
-        borderWidth: 1,
-        borderRadius: 4,
-        barPercentage: 0.72,
-        categoryPercentage: 0.82,
-        maxBarThickness: 48,
-      }],
+      datasets: [
+        {
+          label: 'Esperado (€)',
+          data: emptyData,
+          backgroundColor: years.map(() => 'rgba(52, 152, 219, 0.65)'),
+          borderColor: years.map(() => 'rgba(52, 152, 219, 1)'),
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.76,
+          categoryPercentage: 0.80,
+          maxBarThickness: 34,
+          order: 3,
+        },
+        {
+          label: 'Pagado / disponible (€)',
+          data: emptyData.slice(),
+          backgroundColor: years.map(() => 'rgba(149, 165, 166, 0.10)'),
+          borderColor: years.map(() => 'rgba(149, 165, 166, 0.28)'),
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.76,
+          categoryPercentage: 0.80,
+          maxBarThickness: 34,
+          order: 2,
+        },
+        {
+          label: 'Diferencia / deuda neta FIFO (€)',
+          data: emptyData.slice(),
+          backgroundColor: years.map(() => 'rgba(46, 204, 113, 0.14)'),
+          borderColor: years.map(() => 'rgba(39, 174, 96, 0.45)'),
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.76,
+          categoryPercentage: 0.80,
+          maxBarThickness: 34,
+          order: 1,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -956,10 +1120,14 @@ function animationChartConfig(years) {
       animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { usePointStyle: true, padding: 12, font: { size: 11 }, boxWidth: 12 },
+        },
         tooltip: {
           callbacks: {
-            label: context => `Deuda ${context.label}: ${formatAnimationMoney(context.parsed.y)}`,
+            label: context => `${context.dataset.label}: ${formatAnimationMoney(context.parsed.y)}`,
           },
         },
       },
@@ -970,11 +1138,11 @@ function animationChartConfig(years) {
           title: { display: true, text: 'Año de origen de la deuda' },
         },
         y: {
-          min: MONEY_SCALE.min,
-          max: MONEY_SCALE.max,
-          title: { display: true, text: 'Deuda pendiente (€)' },
+          min: scale.min,
+          max: scale.max,
+          title: { display: true, text: 'Importe (€)' },
           grid: { color: 'rgba(0,0,0,0.06)' },
-          ticks: { stepSize: MONEY_SCALE.stepSize, font: { size: 12 }, callback: formatChartMoney },
+          ticks: { stepSize: scale.stepSize, font: { size: 12 }, callback: formatChartMoney },
         },
       },
     },
@@ -984,16 +1152,30 @@ function animationChartConfig(years) {
 
 function updateFifoAnimationChart(ledger, event = null, progress = 0) {
   if (!fifoAnimationCanvas) return;
-  const colors = animationColors(event, ledger);
+  const expected = expectedAnimationBars(event);
+  const paid = paymentAnimationBars(event, progress);
+  const forgiven = forgivenAnimationBars(event, progress);
+  const difference = differenceAnimationBars(expected, paid, forgiven);
+  const colors = animationColors(event, expected, paid, difference);
+  const scale = animationChartScale(animationRawData);
   if (!animationChart) {
-    const config = animationChartConfig(animationYears);
+    const config = animationChartConfig(animationYears, scale);
     animationChart = new Chart(fifoAnimationCanvas.getContext('2d'), config);
   }
   animationChart.data.labels = animationYears;
-  animationChart.data.datasets[0].data = animationYears.map(year => ledger[year] || 0);
-  animationChart.data.datasets[0].backgroundColor = colors;
-  animationChart.data.datasets[0].borderColor = colors;
-  animationChart.$fifoAnimationView = { event, progress, ledger };
+  animationChart.data.datasets[0].data = animationYears.map(year => expected[year] || 0);
+  animationChart.data.datasets[0].backgroundColor = colors.expectedBackground;
+  animationChart.data.datasets[0].borderColor = colors.expectedBorder;
+  animationChart.data.datasets[1].data = animationYears.map(year => paid[year] || 0);
+  animationChart.data.datasets[1].backgroundColor = colors.paidBackground;
+  animationChart.data.datasets[1].borderColor = colors.paidBorder;
+  animationChart.data.datasets[2].data = animationYears.map(year => difference[year] || 0);
+  animationChart.data.datasets[2].backgroundColor = colors.debtBackground;
+  animationChart.data.datasets[2].borderColor = colors.debtBorder;
+  animationChart.options.scales.y.min = scale.min;
+  animationChart.options.scales.y.max = scale.max;
+  animationChart.options.scales.y.ticks.stepSize = scale.stepSize;
+  animationChart.$fifoAnimationView = { event, progress, ledger, expected, paid, forgiven, difference };
   animationChart.update('none');
 }
 
@@ -1274,7 +1456,7 @@ function renderSnapshot(snapshotId, updateUrl = false) {
   renderTable(snapshot, activeResults);
   renderFifoCallouts(activeResults);
   renderChart(activeResults);
-  renderFifoAnimation(snapshot.data);
+  if (fifoAnimationEnabled) renderFifoAnimation(snapshot.data);
   snapshotLink.href = snapshotHref(snapshot.id);
   if (updateUrl) history.replaceState({}, '', snapshotLink.href);
 }
