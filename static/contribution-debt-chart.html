@@ -305,9 +305,7 @@ function snapshotHref(snapshotId) {
 
 // -- Table rendering ---------------------------------------------------
 function renderTable(snapshot, results) {
-  document.getElementById('outside-heading').textContent = snapshot.legacy
-    ? 'Deuda condonada (€)'
-    : 'Fuera de ventana 5 años (€)';
+  document.getElementById('outside-heading').textContent = 'Deuda condonada (€)';
   tbody.innerHTML = '';
 
   results.forEach(r => {
@@ -361,12 +359,16 @@ function applyResponsive() {
   chart.options.plugins.legend.labels.boxWidth = small ? 10 : 14;
   chart.options.scales.x.ticks.font = { size: fontSize };
   chart.options.scales.y.ticks.font = { size: fontSize };
+  chart.options.scales.y1.ticks.font = { size: fontSize };
   chart.options.scales.y.title.display = !small;
+  chart.options.scales.y1.title.display = !small;
   chart.data.datasets[2].pointRadius = small ? 3 : 5;
   chart.update('none');
 }
 
 function renderChart(results) {
+  const sharedMin = 0;
+  const sharedMax = chartMax(results);
   const config = {
     type: 'bar',
     data: {
@@ -376,6 +378,7 @@ function renderChart(results) {
           type: 'bar',
           label: 'Esperado (€)',
           data: results.map(r => r.expected),
+          yAxisID: 'y',
           backgroundColor: 'rgba(52, 152, 219, 0.65)',
           borderColor: 'rgba(52, 152, 219, 1)',
           borderWidth: 1,
@@ -386,6 +389,7 @@ function renderChart(results) {
           type: 'bar',
           label: 'Pagado (€)',
           data: results.map(r => r.actual),
+          yAxisID: 'y',
           backgroundColor: 'rgba(46, 204, 113, 0.65)',
           borderColor: 'rgba(46, 204, 113, 1)',
           borderWidth: 1,
@@ -396,6 +400,7 @@ function renderChart(results) {
           type: 'line',
           label: 'Deuda acumulada 5 años (€) - FIFO',
           data: results.map(r => r.rollingDebt),
+          yAxisID: 'y1',
           borderColor: '#e74c3c',
           backgroundColor: 'rgba(231, 76, 60, 0.08)',
           borderWidth: 3,
@@ -429,11 +434,19 @@ function renderChart(results) {
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 12 } } },
         y: {
-          min: 0,
-          max: chartMax(results),
+          min: sharedMin,
+          max: sharedMax,
           title: { display: true, text: 'Importe (€)' },
           grid: { color: 'rgba(0,0,0,0.06)' },
-          ticks: { font: { size: 12 }, callback: value => `€${value}` },
+          ticks: { stepSize: 500, font: { size: 12 }, callback: value => `€${value}` },
+        },
+        y1: {
+          position: 'right',
+          min: sharedMin,
+          max: sharedMax,
+          title: { display: true, text: 'Deuda acumulada 5 años (€)' },
+          grid: { drawOnChartArea: false },
+          ticks: { stepSize: 500, font: { size: 12 }, callback: value => `€${value}` },
         },
       },
     },
@@ -448,6 +461,7 @@ function renderChart(results) {
     chart.data.datasets[1].data = config.data.datasets[1].data;
     chart.data.datasets[2].data = config.data.datasets[2].data;
     chart.options.scales.y.max = config.options.scales.y.max;
+    chart.options.scales.y1.max = config.options.scales.y1.max;
     chart.update('none');
   }
   applyResponsive();
@@ -466,7 +480,7 @@ function renderSnapshot(snapshotId, updateUrl = false) {
     : 'Snapshot actualizado con contribuciones esperadas vs. reales y deuda acumulada a 5 años (FIFO).';
   document.getElementById('method-note').innerHTML = `
     <strong>Método:</strong> Los pagos se aplican primero a la <em>deuda más antigua pendiente</em> (FIFO).
-    La deuda fuera de la ventana de 5 años se conserva en el cálculo histórico y se muestra según el formato del snapshot.
+    La deuda de 5 años atrás se marca como condonada en este snapshot, siguiendo el criterio de la hoja.
     ${snapshot.quotaText}
     ${snapshot.legacy ? '' : 'Este importe es un cálculo contable y no sustituye la comprobación de fechas exactas de vencimiento, pagos y posibles interrupciones de la prescripción.'}`;
 
