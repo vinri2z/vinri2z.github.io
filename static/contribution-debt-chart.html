@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deuda puerta 6</title>
+<title>Deuda puerta 6 - snapshots</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -15,7 +15,34 @@
   }
   .container { max-width: 1000px; margin: 0 auto; width: 100%; }
   h1 { font-size: clamp(1.05rem, 3.5vw, 1.5rem); margin-bottom: 4px; }
-  .subtitle { color: #666; font-size: clamp(0.75rem, 2vw, 0.88rem); margin-bottom: 6px; }
+  h2 { font-size: clamp(0.9rem, 2.5vw, 1.1rem); margin: 28px 0 10px; color: #2c3e50; }
+  .subtitle { color: #666; font-size: clamp(0.75rem, 2vw, 0.88rem); margin-bottom: 12px; }
+  .snapshot-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .snapshot-controls label { color: #2c3e50; }
+  .snapshot-controls select {
+    min-width: min(100%, 330px);
+    padding: 7px 9px;
+    border: 1px solid #b9c4cc;
+    border-radius: 6px;
+    background: #fff;
+    color: #2c3e50;
+    font: inherit;
+  }
+  .snapshot-controls select:focus-visible {
+    outline: 3px solid rgba(52, 152, 219, 0.35);
+    outline-offset: 2px;
+  }
+  .snapshot-link { color: #216a9b; font-size: 0.82rem; }
   .method-note {
     background: #eef4fb;
     border-left: 4px solid #3498db;
@@ -23,9 +50,20 @@
     border-radius: 0 6px 6px 0;
     font-size: clamp(0.72rem, 1.8vw, 0.82rem);
     color: #2c5f8a;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
     line-height: 1.5;
   }
+  .result-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    line-height: 1.55;
+  }
+  .result-box strong { color: #c0392b; }
+  .result-box .formula { display: block; margin-top: 6px; }
+  .result-box .schedule { display: block; margin-top: 8px; color: #2c5f8a; }
   .chart-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 24px; }
   .chart-wrapper {
     background: #fff;
@@ -37,7 +75,6 @@
   }
   canvas { width: 100% !important; display: block; }
 
-  /* Scrollable table on small screens */
   .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
     width: 100%;
@@ -49,15 +86,15 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     font-size: clamp(0.72rem, 1.8vw, 0.83rem);
   }
-  th, td { padding: clamp(6px, 1.5vw, 9px) clamp(8px, 2vw, 13px); text-align: right; }
+  th, td { padding: clamp(6px, 1.5vw, 9px) clamp(8px, 2vw, 13px); text-align: right; white-space: nowrap; }
   th { background: #2c3e50; color: #fff; font-weight: 600; }
   th:first-child, td:first-child { text-align: center; font-weight: 600; }
   tr:nth-child(even) { background: #f4f6f8; }
   td.neg { color: #c0392b; }
   td.pos { color: #27ae60; }
-  td.forgiven { color: #e67e22; font-style: italic; }
+  td.outside-window { color: #e67e22; font-style: italic; }
 
-  /* Tooltips on expected column */
+  /* Tooltips on expected values */
   td.has-tooltip {
     position: relative;
     cursor: help;
@@ -83,29 +120,32 @@
     z-index: 100;
     box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     line-height: 1.45;
-    /* positioned via JS */
     top: var(--tip-y, 0px);
     left: var(--tip-x, 0px);
   }
-  td.has-tooltip:hover::after {
-    opacity: 1;
-  }
+  td.has-tooltip:hover::after { opacity: 1; }
 
   @media (max-width: 600px) {
     body { padding: clamp(8px, 3vw, 16px); }
     .chart-wrapper { padding: 10px 6px; min-height: 260px; }
+    .snapshot-controls { align-items: stretch; flex-direction: column; }
+    .snapshot-controls select { width: 100%; }
   }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Deuda puerta 6</h1>
-  <p class="subtitle">Contribuciones esperadas vs. reales por año, con deuda acumulada a 5 años (asignación FIFO)</p>
-  <div class="method-note">
-    <strong>Método de cálculo de deuda:</strong> Los pagos del año Y se aplican primero a la <em>deuda más antigua pendiente</em> (FIFO).
-    La deuda con más de 5 años de antigüedad se condona al final de cada año.
-    Esto significa que un pago en 2023 cubre primero la deuda de 2018 antes de aplicarse al déficit del propio año 2023.
+  <h1 id="page-title">Deuda puerta 6</h1>
+  <p class="subtitle" id="page-subtitle">Selecciona un snapshot histórico para consultar el cálculo de la deuda.</p>
+
+  <div class="snapshot-controls">
+    <label for="snapshot-select"><strong>Snapshot de cálculo</strong></label>
+    <select id="snapshot-select" aria-label="Seleccionar snapshot de cálculo"></select>
+    <a class="snapshot-link" id="snapshot-link" href="?snapshot=2026-09-16">Enlace directo a este snapshot</a>
   </div>
+
+  <div class="method-note" id="method-note"></div>
+  <div class="result-box" id="result-box" aria-live="polite"></div>
 
   <div class="chart-scroll">
     <div class="chart-wrapper">
@@ -121,7 +161,7 @@
         <th>Esperado (€)</th>
         <th>Pagado (€)</th>
         <th>Diferencia anual (€)</th>
-        <th>Deuda condonada (€)</th>
+        <th id="outside-heading">Fuera de ventana 5 años (€)</th>
         <th>Deuda acumulada 5 años (€)</th>
       </tr>
     </thead>
@@ -131,219 +171,326 @@
 </div>
 
 <script>
-// ── Raw data ──
-const rawData = [
-  { year: 2017, expected: 302.35, actual:   0.00 },
-  { year: 2018, expected: 600.00, actual:  55.00 },
-  { year: 2019, expected: 600.00, actual: 600.00 },
-  { year: 2020, expected: 114.71, actual:   0.00 },
-  { year: 2021, expected:  70.59, actual:   0.00 },
-  { year: 2022, expected: 559.06, actual:   0.00 },
-  { year: 2023, expected: 600.00, actual: 200.00 },
-  { year: 2024, expected: 600.00, actual: 812.00 },
-  { year: 2025, expected: 600.00, actual:   0.00 },
-  { year: 2026, expected: 150.00, actual:   0.00 },
+// -- Snapshot data ------------------------------------------------------
+const SNAPSHOTS = [
+  {
+    id: '2026-03-05',
+    label: '05/03/2026 - dashboard anterior (datos hasta marzo)',
+    cutoffLabel: '05/03/2026',
+    legacy: true,
+    quotaText: 'En este snapshot, 2026 recoge 3 meses × 50 €/mes = 150 € (enero - marzo).',
+    scheduleText: 'Este es el dashboard anterior conservado como snapshot histórico.',
+    data: [
+      { year: 2017, expected: 302.35, actual:   0.00 },
+      { year: 2018, expected: 600.00, actual:  55.00 },
+      { year: 2019, expected: 600.00, actual: 600.00 },
+      { year: 2020, expected: 114.71, actual:   0.00 },
+      { year: 2021, expected:  70.59, actual:   0.00 },
+      { year: 2022, expected: 559.06, actual:   0.00 },
+      { year: 2023, expected: 600.00, actual: 200.00 },
+      { year: 2024, expected: 600.00, actual: 812.00 },
+      { year: 2025, expected: 600.00, actual:   0.00 },
+      { year: 2026, expected: 150.00, actual:   0.00 },
+    ],
+    tooltips: {
+      2017: '↗ Seguro finca: 418.80€ ÷ 8 = 52.35€  +  5 meses × 50€/mes = 250€',
+      2018: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2019: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2020: '↗ Mantenimiento básico de la finca: seguro finca (517.68€ ÷ 8 = 64.71€), comisión bancaria, luz zonas comunes  +  1 mes × 50€/mes\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
+      2021: '↗ Mantenimiento básico de la finca: seguro finca (564.72€ ÷ 8 = 70.59€), comisión bancaria (~12€/mes), luz zonas comunes (~6-8€/mes)\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
+      2022: '↗ Seguro finca: 472.48€ ÷ 8 = 59.06€  +  10 meses × 50€/mes = 500€\n⚠ COVID: fondo de reserva reanudado progresivamente',
+      2023: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2024: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2025: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2026: '↗ 3 meses × 50€/mes (enero - marzo)',
+    },
+  },
+  {
+    id: '2026-09-16',
+    label: '16/09/2026 - actualizado',
+    cutoffLabel: '16/09/2026',
+    legacy: false,
+    quotaText: 'En este snapshot, 2026 recoge 3 trimestres × 150 €/trimestre = 450 € (enero - septiembre). Desde el 01/10/2026 pasa a 200 €/trimestre.',
+    scheduleText: 'El cuarto trimestre no está incluido en el saldo al corte.',
+    futureQuarter: 200,
+    data: [
+      { year: 2017, expected: 302.35, actual:   0.00 },
+      { year: 2018, expected: 600.00, actual:  55.00 },
+      { year: 2019, expected: 600.00, actual: 600.00 },
+      { year: 2020, expected: 114.71, actual:   0.00 },
+      { year: 2021, expected:  70.59, actual:   0.00 },
+      { year: 2022, expected: 559.06, actual:   0.00 },
+      { year: 2023, expected: 600.00, actual: 200.00 },
+      { year: 2024, expected: 600.00, actual: 812.00 },
+      { year: 2025, expected: 600.00, actual:   0.00 },
+      { year: 2026, expected: 450.00, actual:   0.00 },
+    ],
+    tooltips: {
+      2017: '↗ Seguro finca: 418.80€ ÷ 8 = 52.35€  +  5 meses × 50€/mes = 250€',
+      2018: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2019: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2020: '↗ Mantenimiento básico de la finca: seguro finca (517.68€ ÷ 8 = 64.71€), comisión bancaria, luz zonas comunes  +  1 mes × 50€/mes\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
+      2021: '↗ Mantenimiento básico de la finca: seguro finca (564.72€ ÷ 8 = 70.59€), comisión bancaria (~12€/mes), luz zonas comunes (~6-8€/mes)\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
+      2022: '↗ Seguro finca: 472.48€ ÷ 8 = 59.06€  +  10 meses × 50€/mes = 500€\n⚠ COVID: fondo de reserva reanudado progresivamente',
+      2023: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2024: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2025: '↗ 50€/mes × 12 meses - fondo de reserva',
+      2026: '↗ 3 trimestres × 150€/trimestre = 450€ (enero - septiembre)\n↗ Desde 01/10/2026: 200€/trimestre',
+    },
+  },
 ];
 
-// ── FIFO debt computation ──
-// ledger: Map<year, remainingDebt>
-const ledger = new Map();
-const results = rawData.map(d => {
-  const { year, expected, actual } = d;
-
-  // 1. Add new debt for this year
-  ledger.set(year, expected);
-
-  // 2. Apply payment FIFO (oldest year first)
-  let remaining = actual;
-  for (const y of [...ledger.keys()].sort((a, b) => a - b)) {
-    if (remaining <= 0) break;
-    const paid = Math.min(remaining, ledger.get(y));
-    ledger.set(y, ledger.get(y) - paid);
-    remaining -= paid;
-  }
-
-  // 3. Forgive debts from year-5 and older
-  const expiryYear = year - 5;
-  let forgiven = 0;
-  for (const [y, debt] of ledger) {
-    if (y <= expiryYear) {
-      forgiven += debt;
-      ledger.set(y, 0);
-    }
-  }
-  // Prune zeroes
-  for (const [y, debt] of ledger) {
-    if (debt < 0.001) ledger.delete(y);
-  }
-
-  // 4. Rolling debt = sum of ledger
-  const rollingDebt = [...ledger.values()].reduce((a, b) => a + b, 0);
-
-  return { year, expected, actual, gap: expected - actual, forgiven, rollingDebt };
-});
-
-// ── Tooltip flag: only active when ?tooltips=1 is in the URL ──
+const snapshotById = Object.fromEntries(SNAPSHOTS.map(snapshot => [snapshot.id, snapshot]));
+const defaultSnapshotId = '2026-09-16';
 const tooltipsEnabled = new URLSearchParams(window.location.search).get('tooltips') === '1';
-
-// ── Tooltip justifications for expected contributions ──
-const tooltips = {
-  2017: '↗ Seguro finca: 418.80€ ÷ 8 = 52.35€  +  5 meses × 50€/mes = 250€',
-  2018: '↗ 50€/mes × 12 meses - fondo de reserva',
-  2019: '↗ 50€/mes × 12 meses - fondo de reserva',
-  2020: '↗ Mantenimiento básico de la finca: seguro finca (517.68€ ÷ 8 = 64.71€), comisión bancaria, luz zonas comunes  +  1 mes × 50€/mes\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
-  2021: '↗ Mantenimiento básico de la finca: seguro finca (564.72€ ÷ 8 = 70.59€), comisión bancaria (~12€/mes), luz zonas comunes (~6-8€/mes)\n⚠ COVID: fondo de reserva suspendido - nadie contribuía',
-  2022: '↗ Seguro finca: 472.48€ ÷ 8 = 59.06€  +  10 meses × 50€/mes = 500€\n⚠ COVID: fondo de reserva reanudado progresivamente',
-  2023: '↗ 50€/mes × 12 meses - fondo de reserva',
-  2024: '↗ 50€/mes × 12 meses - fondo de reserva',
-  2025: '↗ 50€/mes × 12 meses - fondo de reserva',
-  2026: '↗ 3 meses × 50€/mes (enero - marzo)',
-};
-
-// ── Populate table ──
+const snapshotSelect = document.getElementById('snapshot-select');
+const snapshotLink = document.getElementById('snapshot-link');
 const tbody = document.querySelector('#data-table tbody');
-results.forEach(r => {
-  const gapClass = r.gap > 0 ? 'neg' : r.gap < 0 ? 'pos' : '';
-  const tip = tooltips[r.year] || '';
-  const tipAttr = (tooltipsEnabled && tip) ? ` class="has-tooltip" data-tooltip="${tip.replace(/\n/g, '&#10;')}"` : '';
-  const row = document.createElement('tr');
-  row.innerHTML = `
-    <td>${r.year}</td>
-    <td${tipAttr}>${r.expected.toFixed(2)}</td>
-    <td>${r.actual.toFixed(2)}</td>
-    <td class="${gapClass}">${r.gap > 0 ? '+' : ''}${r.gap.toFixed(2)}</td>
-    <td class="${r.forgiven > 0 ? 'forgiven' : ''}">${r.forgiven > 0 ? r.forgiven.toFixed(2) : ' - '}</td>
-    <td><strong>${r.rollingDebt.toFixed(2)}</strong></td>`;
-  tbody.appendChild(row);
+let chart = null;
+let activeResults = [];
+
+SNAPSHOTS.forEach(snapshot => {
+  const option = document.createElement('option');
+  option.value = snapshot.id;
+  option.textContent = snapshot.label;
+  snapshotSelect.appendChild(option);
 });
 
-// ── Axis range helpers (zero-aligned, single shared axis) ──
-const yMax = 2900;
-const yMin = 0;
+// -- FIFO computation --------------------------------------------------
+function computeFIFO(rawData) {
+  const ledger = new Map();
+  return rawData.map(d => {
+    const { year, expected, actual } = d;
 
-// ── Responsive font helper ──
-// Maps chart pixel width → a comfortable font size
-function fs(w) { return Math.round(Math.max(9, Math.min(13, w / 52))); }
+    ledger.set(year, expected);
 
-// ── Apply responsive options to a live chart ──
-function applyResponsive(chart, w) {
-  const f = fs(w);
-  const small = w < 560;
-  // Legend
+    let remaining = actual;
+    for (const y of [...ledger.keys()].sort((a, b) => a - b)) {
+      if (remaining <= 0) break;
+      const paid = Math.min(remaining, ledger.get(y));
+      ledger.set(y, ledger.get(y) - paid);
+      remaining -= paid;
+    }
+
+    const expiryYear = year - 5;
+    let outOfWindow = 0;
+    for (const [y, debt] of ledger) {
+      if (y <= expiryYear) {
+        outOfWindow += debt;
+        ledger.set(y, 0);
+      }
+    }
+    for (const [y, debt] of ledger) {
+      if (debt < 0.001) ledger.delete(y);
+    }
+
+    const rollingDebt = [...ledger.values()].reduce((a, b) => a + b, 0);
+    return {
+      year,
+      expected,
+      actual,
+      gap: expected - actual,
+      outOfWindow,
+      rollingDebt,
+      ledger: Object.fromEntries(ledger),
+    };
+  });
+}
+
+function snapshotHref(snapshotId) {
+  const params = new URLSearchParams(window.location.search);
+  params.set('snapshot', snapshotId);
+  return `${window.location.pathname}?${params.toString()}`;
+}
+
+// -- Table rendering ---------------------------------------------------
+function renderTable(snapshot, results) {
+  document.getElementById('outside-heading').textContent = snapshot.legacy
+    ? 'Deuda condonada (€)'
+    : 'Fuera de ventana 5 años (€)';
+  tbody.innerHTML = '';
+
+  results.forEach(r => {
+    const gapClass = r.gap > 0 ? 'neg' : r.gap < 0 ? 'pos' : '';
+    const tip = snapshot.tooltips[r.year] || '';
+    const tipAttr = (tooltipsEnabled && tip)
+      ? ` class="has-tooltip" data-tooltip="${tip.replace(/\n/g, '&#10;')}"`
+      : '';
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${r.year}</td>
+      <td${tipAttr}>${r.expected.toFixed(2)}</td>
+      <td>${r.actual.toFixed(2)}</td>
+      <td class="${gapClass}">${r.gap > 0 ? '+' : ''}${r.gap.toFixed(2)}</td>
+      <td class="${r.outOfWindow > 0 ? 'outside-window' : ''}">${r.outOfWindow > 0 ? r.outOfWindow.toFixed(2) : ' - '}</td>
+      <td><strong>${r.rollingDebt.toFixed(2)}</strong></td>`;
+    tbody.appendChild(row);
+  });
+
+  if (tooltipsEnabled) {
+    document.querySelectorAll('td.has-tooltip').forEach(td => {
+      td.addEventListener('mousemove', event => {
+        const gap = 12;
+        const tipWidth = 320;
+        const tipHeight = 60;
+        let x = event.clientX - tipWidth / 2;
+        let y = event.clientY - tipHeight - gap;
+        x = Math.max(8, Math.min(x, window.innerWidth - tipWidth - 8));
+        if (y < 8) y = event.clientY + gap;
+        td.style.setProperty('--tip-x', x + 'px');
+        td.style.setProperty('--tip-y', y + 'px');
+      });
+    });
+  }
+}
+
+// -- Chart rendering ---------------------------------------------------
+function chartMax(results) {
+  const maximum = Math.max(...results.map(r => Math.max(r.expected, r.actual, r.rollingDebt)));
+  return Math.ceil((maximum * 1.15) / 100) * 100;
+}
+
+function applyResponsive() {
+  if (!chart) return;
+  const width = chart.width || 600;
+  const fontSize = Math.round(Math.max(9, Math.min(13, width / 52)));
+  const small = width < 560;
   chart.options.plugins.legend.position = small ? 'bottom' : 'top';
-  chart.options.plugins.legend.labels.font = { size: f };
+  chart.options.plugins.legend.labels.font = { size: fontSize };
   chart.options.plugins.legend.labels.padding = small ? 10 : 18;
   chart.options.plugins.legend.labels.boxWidth = small ? 10 : 14;
-  // Axes
-  chart.options.scales.x.ticks.font = { size: f };
-  chart.options.scales.y.ticks.font = { size: f };
+  chart.options.scales.x.ticks.font = { size: fontSize };
+  chart.options.scales.y.ticks.font = { size: fontSize };
   chart.options.scales.y.title.display = !small;
-  // Bar width - proportional to available space per category
-  const barThickness = Math.max(8, Math.min(36, (w - 80) / results.length / 2.2));
-  chart.data.datasets[0].maxBarThickness = barThickness;
-  chart.data.datasets[1].maxBarThickness = barThickness;
-  // Point radius
   chart.data.datasets[2].pointRadius = small ? 3 : 5;
   chart.update('none');
 }
 
-// ── Chart ──
-const ctx = document.getElementById('chart').getContext('2d');
-const chart = new Chart(ctx, {
-  data: {
-    labels: results.map(r => r.year),
-    datasets: [
-      {
-        type: 'bar',
-        label: 'Esperado (€)',
-        data: results.map(r => r.expected),
-        backgroundColor: 'rgba(52, 152, 219, 0.65)',
-        borderColor: 'rgba(52, 152, 219, 1)',
-        borderWidth: 1,
-        borderRadius: 4,
-        order: 2,
-      },
-      {
-        type: 'bar',
-        label: 'Pagado (€)',
-        data: results.map(r => r.actual),
-        backgroundColor: 'rgba(46, 204, 113, 0.65)',
-        borderColor: 'rgba(46, 204, 113, 1)',
-        borderWidth: 1,
-        borderRadius: 4,
-        order: 3,
-      },
-      {
-        type: 'line',
-        label: 'Deuda acumulada 5 años (€) - FIFO',
-        data: results.map(r => r.rollingDebt),
-        borderColor: '#e74c3c',
-        backgroundColor: 'rgba(231, 76, 60, 0.08)',
-        borderWidth: 3,
-        pointRadius: 5,
-        pointBackgroundColor: '#e74c3c',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        fill: true,
-        tension: 0.3,
-        order: 1,
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: true,
-    grouped: true,
-    interaction: { mode: 'index', intersect: false },
-    onResize(chart, size) { applyResponsive(chart, size.width); },
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: { usePointStyle: true, padding: 18, font: { size: 12 }, boxWidth: 14 }
-      },
-      tooltip: {
-        callbacks: {
-          label: ctx => `${ctx.dataset.label}: €${ctx.parsed.y.toFixed(2)}`
-        }
-      }
+function renderChart(results) {
+  const config = {
+    type: 'bar',
+    data: {
+      labels: results.map(r => r.year),
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Esperado (€)',
+          data: results.map(r => r.expected),
+          backgroundColor: 'rgba(52, 152, 219, 0.65)',
+          borderColor: 'rgba(52, 152, 219, 1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 2,
+        },
+        {
+          type: 'bar',
+          label: 'Pagado (€)',
+          data: results.map(r => r.actual),
+          backgroundColor: 'rgba(46, 204, 113, 0.65)',
+          borderColor: 'rgba(46, 204, 113, 1)',
+          borderWidth: 1,
+          borderRadius: 4,
+          order: 3,
+        },
+        {
+          type: 'line',
+          label: 'Deuda acumulada 5 años (€) - FIFO',
+          data: results.map(r => r.rollingDebt),
+          borderColor: '#e74c3c',
+          backgroundColor: 'rgba(231, 76, 60, 0.08)',
+          borderWidth: 3,
+          pointRadius: 5,
+          pointBackgroundColor: '#e74c3c',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          fill: true,
+          tension: 0.3,
+          order: 1,
+        },
+      ],
     },
-    scales: {
-      x: {
-        grid: { display: false },
-        ticks: { font: { size: 12 } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      grouped: true,
+      interaction: { mode: 'index', intersect: false },
+      onResize() { applyResponsive(); },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { usePointStyle: true, padding: 18, font: { size: 12 }, boxWidth: 14 },
+        },
+        tooltip: {
+          callbacks: {
+            label: context => `${context.dataset.label}: €${context.parsed.y.toFixed(2)}`,
+          },
+        },
       },
-      y: {
-        min: yMin, max: yMax,
-        title: { display: true, text: 'Importe (€)' },
-        grid: { color: 'rgba(0,0,0,0.06)' },
-        ticks: { font: { size: 12 }, callback: val => `€${val}` }
-      }
-    }
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+        y: {
+          min: 0,
+          max: chartMax(results),
+          title: { display: true, text: 'Importe (€)' },
+          grid: { color: 'rgba(0,0,0,0.06)' },
+          ticks: { font: { size: 12 }, callback: value => `€${value}` },
+        },
+      },
+    },
+  };
+
+  if (!chart) {
+    const canvas = document.getElementById('chart');
+    chart = new Chart(canvas.getContext('2d'), config);
+  } else {
+    chart.data.labels = config.data.labels;
+    chart.data.datasets[0].data = config.data.datasets[0].data;
+    chart.data.datasets[1].data = config.data.datasets[1].data;
+    chart.data.datasets[2].data = config.data.datasets[2].data;
+    chart.options.scales.y.max = config.options.scales.y.max;
+    chart.update('none');
   }
-});
+  applyResponsive();
+}
 
-// Apply on first paint using actual rendered width
-applyResponsive(chart, chart.width);
+// -- Snapshot rendering ------------------------------------------------
+function renderSnapshot(snapshotId, updateUrl = false) {
+  const snapshot = snapshotById[snapshotId] || snapshotById[defaultSnapshotId];
+  activeResults = computeFIFO(snapshot.data);
+  snapshotSelect.value = snapshot.id;
 
-// ── Smart tooltip positioning ──
-// Uses fixed positioning + mousemove so the tooltip never clips at the viewport edge
-document.querySelectorAll('td.has-tooltip').forEach(td => {
-  const pseudo = window.getComputedStyle(td, '::after');
-  td.addEventListener('mouseenter', () => {});  // trigger repaint
-  td.addEventListener('mousemove', e => {
-    const GAP = 12;
-    const TIP_W = 320;
-    const TIP_H = 60; // rough estimate - enough to avoid flicker
-    let x = e.clientX - TIP_W / 2;
-    let y = e.clientY - TIP_H - GAP;
-    // Clamp horizontally
-    x = Math.max(8, Math.min(x, window.innerWidth - TIP_W - 8));
-    // If too close to top, flip below cursor
-    if (y < 8) y = e.clientY + GAP;
-    td.style.setProperty('--tip-x', x + 'px');
-    td.style.setProperty('--tip-y', y + 'px');
-  });
-});
+  document.title = `Deuda puerta 6 - corte ${snapshot.cutoffLabel}`;
+  document.getElementById('page-title').textContent = `Deuda puerta 6 - corte ${snapshot.cutoffLabel}`;
+  document.getElementById('page-subtitle').textContent = snapshot.legacy
+    ? 'Snapshot histórico del dashboard anterior, con contribuciones esperadas vs. reales y deuda acumulada a 5 años (FIFO).'
+    : 'Snapshot actualizado con contribuciones esperadas vs. reales y deuda acumulada a 5 años (FIFO).';
+  document.getElementById('method-note').innerHTML = `
+    <strong>Método:</strong> Los pagos se aplican primero a la <em>deuda más antigua pendiente</em> (FIFO).
+    La deuda fuera de la ventana de 5 años se conserva en el cálculo histórico y se muestra según el formato del snapshot.
+    ${snapshot.quotaText}
+    ${snapshot.legacy ? '' : 'Este importe es un cálculo contable y no sustituye la comprobación de fechas exactas de vencimiento, pagos y posibles interrupciones de la prescripción.'}`;
+
+  const finalResult = activeResults[activeResults.length - 1];
+  const breakdown = Object.entries(finalResult.ledger)
+    .map(([year, debt]) => `${year}: €${debt.toFixed(2)}`)
+    .join(' + ');
+  const projection = snapshot.futureQuarter
+    ? ` Si no se paga el cuarto trimestre, la proyección al cierre de 2026 sería €${(finalResult.rollingDebt + snapshot.futureQuarter).toFixed(2)}.`
+    : '';
+  document.getElementById('result-box').innerHTML = `
+    <strong>Saldo al ${snapshot.cutoffLabel}: €${finalResult.rollingDebt.toFixed(2)}</strong>
+    <span class="formula">Desglose FIFO: ${breakdown} = €${finalResult.rollingDebt.toFixed(2)}.</span>
+    <span class="schedule">${snapshot.scheduleText}${projection}</span>`;
+
+  renderTable(snapshot, activeResults);
+  renderChart(activeResults);
+  snapshotLink.href = snapshotHref(snapshot.id);
+  if (updateUrl) history.replaceState({}, '', snapshotLink.href);
+}
+
+snapshotSelect.addEventListener('change', () => renderSnapshot(snapshotSelect.value, true));
+const requestedSnapshot = new URLSearchParams(window.location.search).get('snapshot');
+renderSnapshot(snapshotById[requestedSnapshot] ? requestedSnapshot : defaultSnapshotId);
 </script>
 </body>
 </html>
