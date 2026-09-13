@@ -74,6 +74,25 @@
     min-height: 320px;
   }
   canvas { width: 100% !important; display: block; }
+  .fifo-callouts {
+    display: grid;
+    gap: 6px;
+    margin: 14px 2px 0;
+    color: #2c3e50;
+    font-size: clamp(0.72rem, 1.8vw, 0.82rem);
+  }
+  .fifo-callout {
+    margin: 0;
+    padding: 7px 10px;
+    border-left: 4px solid #8e44ad;
+    background: #f7f1fa;
+    line-height: 1.4;
+  }
+  .fifo-callout .fifo-arrow {
+    color: #8e44ad;
+    font-size: 1.1em;
+    margin-right: 4px;
+  }
 
   .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
@@ -150,6 +169,7 @@
   <div class="chart-scroll">
     <div class="chart-wrapper">
       <canvas id="chart"></canvas>
+      <div class="fifo-callouts" id="fifo-callouts" role="note" aria-label="Aplicación FIFO de los pagos"></div>
     </div>
   </div>
 
@@ -343,6 +363,102 @@ function renderTable(snapshot, results) {
 }
 
 // -- Chart rendering ---------------------------------------------------
+const FIFO_ALLOCATIONS = [
+  { paymentYear: 2023, targetYear: 2018, targetLabel: '2018' },
+  { paymentYear: 2024, targetYear: 2019, targetLabel: '2019 a 2022' },
+];
+
+function roundedRectPath(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawArrowHead(ctx, x, y, angle, color) {
+  const size = 7;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - size * Math.cos(angle - Math.PI / 6), y - size * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(x - size * Math.cos(angle + Math.PI / 6), y - size * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+}
+
+const fifoAllocationPlugin = {
+  id: 'fifoAllocationArrows',
+  afterDatasetsDraw(chart) {
+    const { chartArea, ctx } = chart;
+    const labels = chart.data.labels || [];
+    const paidMeta = chart.getDatasetMeta(1);
+    const debtMeta = chart.getDatasetMeta(2);
+    if (!chartArea || !ctx || !paidMeta?.data || !debtMeta?.data) return;
+
+    const fontSize = chart.width < 560 ? 9 : 10;
+    const color = '#8e44ad';
+    const boxHeight = fontSize + 12;
+    const gap = 6;
+    const availableWidth = chartArea.right - chartArea.left - 8;
+
+    ctx.save();
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = color;
+    ctx.setLineDash([5, 4]);
+
+    FIFO_ALLOCATIONS.forEach((allocation, row) => {
+      const paymentIndex = labels.indexOf(allocation.paymentYear);
+      const targetIndex = labels.indexOf(allocation.targetYear);
+      if (paymentIndex < 0 || targetIndex < 0) return;
+
+      const payment = Number(chart.data.datasets[1].data[paymentIndex]);
+      const source = paidMeta.data[paymentIndex];
+      const target = debtMeta.data[targetIndex];
+      if (!(payment > 0) || !source || !target) return;
+
+      const text = `Pago ${allocation.paymentYear}: ${payment.toFixed(0)} € → ${allocation.targetLabel}`;
+      const boxWidth = Math.min(availableWidth, ctx.measureText(text).width + 16);
+      const labelY = chartArea.top + 6 + row * (boxHeight + gap);
+      const centerX = (source.x + target.x) / 2;
+      const boxX = Math.max(
+        chartArea.left + 4,
+        Math.min(centerX - boxWidth / 2, chartArea.right - boxWidth - 4),
+      );
+      const laneY = labelY + boxHeight + 3;
+      const targetY = target.y - 6;
+
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y - 3);
+      ctx.bezierCurveTo(source.x, laneY, target.x, laneY, target.x, targetY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      drawArrowHead(ctx, target.x, targetY, Math.atan2(targetY - laneY, 0), color);
+      ctx.setLineDash([5, 4]);
+
+      roundedRectPath(ctx, boxX, labelY, boxWidth, boxHeight, 5);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      ctx.fillStyle = '#2c3e50';
+      ctx.textAlign = 'left';
+      ctx.fillText(text, boxX + 8, labelY + boxHeight / 2);
+    });
+
+    ctx.restore();
+  },
+};
+
 function chartMax(results) {
   const maximum = Math.max(...results.map(r => Math.max(r.expected, r.actual, r.rollingDebt)));
   return Math.ceil((maximum * 1.15) / 100) * 100;
@@ -450,6 +566,7 @@ function renderChart(results) {
         },
       },
     },
+    plugins: [fifoAllocationPlugin],
   };
 
   if (!chart) {
@@ -468,6 +585,14 @@ function renderChart(results) {
 }
 
 // -- Snapshot rendering ------------------------------------------------
+function renderFifoCallouts(results) {
+  const byYear = Object.fromEntries(results.map(result => [result.year, result]));
+  document.getElementById('fifo-callouts').innerHTML = FIFO_ALLOCATIONS.map(allocation => {
+    const payment = byYear[allocation.paymentYear]?.actual || 0;
+    return `<p class="fifo-callout"><span class="fifo-arrow" aria-hidden="true">↖</span><strong>Pago ${allocation.paymentYear}: ${payment.toFixed(2)} €</strong> se aplica primero a la deuda de ${allocation.targetLabel} (FIFO).</p>`;
+  }).join('');
+}
+
 function renderSnapshot(snapshotId, updateUrl = false) {
   const snapshot = snapshotById[snapshotId] || snapshotById[defaultSnapshotId];
   activeResults = computeFIFO(snapshot.data);
@@ -480,6 +605,7 @@ function renderSnapshot(snapshotId, updateUrl = false) {
     : 'Snapshot actualizado con contribuciones esperadas vs. reales y deuda acumulada a 5 años (FIFO).';
   document.getElementById('method-note').innerHTML = `
     <strong>Método:</strong> Los pagos se aplican primero a la <em>deuda más antigua pendiente</em> (FIFO).
+    Las flechas del gráfico muestran que los pagos de 2023 y 2024 se aplican primero a la deuda antigua, no a la cuota del propio año.
     La deuda de 5 años atrás se marca como condonada en este snapshot, siguiendo el criterio de la hoja.
     ${snapshot.quotaText}
     ${snapshot.legacy ? '' : 'Este importe es un cálculo contable y no sustituye la comprobación de fechas exactas de vencimiento, pagos y posibles interrupciones de la prescripción.'}`;
@@ -497,6 +623,7 @@ function renderSnapshot(snapshotId, updateUrl = false) {
     <span class="schedule">${snapshot.scheduleText}${projection}</span>`;
 
   renderTable(snapshot, activeResults);
+  renderFifoCallouts(activeResults);
   renderChart(activeResults);
   snapshotLink.href = snapshotHref(snapshot.id);
   if (updateUrl) history.replaceState({}, '', snapshotLink.href);
