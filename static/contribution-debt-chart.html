@@ -64,6 +64,7 @@
   .result-box strong { color: #c0392b; }
   .result-box .formula { display: block; margin-top: 6px; }
   .result-box .schedule { display: block; margin-top: 8px; color: #2c5f8a; }
+  .result-box .residual-note { display: block; margin-top: 8px; color: #6c3483; }
   .chart-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 24px; }
   .chart-wrapper {
     background: #fff;
@@ -181,7 +182,8 @@
         <th>Esperado (€)</th>
         <th>Pagado (€)</th>
         <th>Diferencia anual (€)</th>
-        <th id="outside-heading">Fuera de ventana 5 años (€)</th>
+        <th id="outside-heading">Deuda condonada (€)</th>
+        <th>Residuo neto del año (€)</th>
         <th>Deuda acumulada 5 años (€)</th>
       </tr>
     </thead>
@@ -279,7 +281,7 @@ SNAPSHOTS.forEach(snapshot => {
 // -- FIFO computation --------------------------------------------------
 function computeFIFO(rawData) {
   const ledger = new Map();
-  return rawData.map(d => {
+  const results = rawData.map(d => {
     const { year, expected, actual } = d;
 
     ledger.set(year, expected);
@@ -315,6 +317,16 @@ function computeFIFO(rawData) {
       ledger: Object.fromEntries(ledger),
     };
   });
+
+  // Final residual by origin year after FIFO payments and the window rule.
+  const netResidualByYear = Object.fromEntries(rawData.map(d => [
+    d.year,
+    Math.max(0, ledger.get(d.year) || 0),
+  ]));
+  return results.map(result => ({
+    ...result,
+    netResidual: netResidualByYear[result.year] || 0,
+  }));
 }
 
 function snapshotHref(snapshotId) {
@@ -341,6 +353,7 @@ function renderTable(snapshot, results) {
       <td>${r.actual.toFixed(2)}</td>
       <td class="${gapClass}">${r.gap > 0 ? '+' : ''}${r.gap.toFixed(2)}</td>
       <td class="${r.outOfWindow > 0 ? 'outside-window' : ''}">${r.outOfWindow > 0 ? r.outOfWindow.toFixed(2) : ' - '}</td>
+      <td class="net-residual"><strong>${r.netResidual.toFixed(2)}</strong></td>
       <td><strong>${r.rollingDebt.toFixed(2)}</strong></td>`;
     tbody.appendChild(row);
   });
@@ -614,12 +627,18 @@ function renderSnapshot(snapshotId, updateUrl = false) {
   const breakdown = Object.entries(finalResult.ledger)
     .map(([year, debt]) => `${year}: €${debt.toFixed(2)}`)
     .join(' + ');
+  const netBreakdown = activeResults
+    .filter(result => result.netResidual > 0.001)
+    .map(result => `${result.year}: €${result.netResidual.toFixed(2)}`)
+    .join(' + ');
+  const netResidualByYear = Object.fromEntries(activeResults.map(result => [result.year, result.netResidual]));
   const projection = snapshot.futureQuarter
     ? ` Si no se paga el cuarto trimestre, la proyección al cierre de 2026 sería €${(finalResult.rollingDebt + snapshot.futureQuarter).toFixed(2)}.`
     : '';
   document.getElementById('result-box').innerHTML = `
     <strong>Saldo al ${snapshot.cutoffLabel}: €${finalResult.rollingDebt.toFixed(2)}</strong>
     <span class="formula">Desglose FIFO: ${breakdown} = €${finalResult.rollingDebt.toFixed(2)}.</span>
+    <span class="residual-note">Residuo neto por año: ${netBreakdown} = €${finalResult.rollingDebt.toFixed(2)}. Ejemplos: 2018 queda en €${netResidualByYear[2018].toFixed(2)}; 2023 queda en €${netResidualByYear[2023].toFixed(2)} porque sus 200 € se aplican a deuda anterior; 2024 queda en €${netResidualByYear[2024].toFixed(2)} porque sus 812 € se aplican FIFO a deuda anterior.</span>
     <span class="schedule">${snapshot.scheduleText}${projection}</span>`;
 
   renderTable(snapshot, activeResults);
