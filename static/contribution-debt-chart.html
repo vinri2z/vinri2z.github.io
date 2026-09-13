@@ -439,7 +439,7 @@ const fifoAllocationPlugin = {
       const target = debtMeta.data[targetIndex];
       if (!(payment > 0) || !source || !target) return;
 
-      const text = `Pago ${allocation.paymentYear}: ${payment.toFixed(0)} € → ${allocation.targetLabel}`;
+      const text = `Pago ${allocation.paymentYear}: ${formatChartAmount(payment)} → ${allocation.targetLabel}`;
       const boxWidth = Math.min(availableWidth, ctx.measureText(text).width + 16);
       const labelY = chartArea.top + 6 + row * (boxHeight + gap);
       const centerX = (source.x + target.x) / 2;
@@ -472,9 +472,23 @@ const fifoAllocationPlugin = {
   },
 };
 
-function chartMax(results) {
-  const maximum = Math.max(...results.map(r => Math.max(r.expected, r.actual, r.rollingDebt)));
-  return Math.ceil((maximum * 1.15) / 100) * 100;
+// Both debt charts intentionally use the same rounded money window.
+const MONEY_SCALE = Object.freeze({
+  min: 0,
+  max: 3200,
+  stepSize: 400,
+});
+
+function chartMax() {
+  return MONEY_SCALE.max;
+}
+
+function formatChartMoney(value) {
+  return `€${Math.round(Number(value))}`;
+}
+
+function formatChartAmount(value) {
+  return `${Math.round(Number(value))} €`;
 }
 
 function applyResponsive() {
@@ -488,16 +502,14 @@ function applyResponsive() {
   chart.options.plugins.legend.labels.boxWidth = small ? 10 : 14;
   chart.options.scales.x.ticks.font = { size: fontSize };
   chart.options.scales.y.ticks.font = { size: fontSize };
-  chart.options.scales.y1.ticks.font = { size: fontSize };
   chart.options.scales.y.title.display = !small;
-  chart.options.scales.y1.title.display = !small;
   chart.data.datasets[2].pointRadius = small ? 3 : 5;
   chart.update('none');
 }
 
 function renderChart(results) {
-  const sharedMin = 0;
-  const sharedMax = chartMax(results);
+  const sharedMin = MONEY_SCALE.min;
+  const sharedMax = chartMax();
   const config = {
     type: 'bar',
     data: {
@@ -529,7 +541,7 @@ function renderChart(results) {
           type: 'line',
           label: 'Deuda acumulada 5 años (€) - FIFO',
           data: results.map(r => r.rollingDebt),
-          yAxisID: 'y1',
+          yAxisID: 'y',
           borderColor: '#e74c3c',
           backgroundColor: 'rgba(231, 76, 60, 0.08)',
           borderWidth: 3,
@@ -556,7 +568,7 @@ function renderChart(results) {
         },
         tooltip: {
           callbacks: {
-            label: context => `${context.dataset.label}: €${context.parsed.y.toFixed(2)}`,
+            label: context => `${context.dataset.label}: ${formatChartMoney(context.parsed.y)}`,
           },
         },
       },
@@ -567,15 +579,7 @@ function renderChart(results) {
           max: sharedMax,
           title: { display: true, text: 'Importe (€)' },
           grid: { color: 'rgba(0,0,0,0.06)' },
-          ticks: { stepSize: 500, font: { size: 12 }, callback: value => `€${value}` },
-        },
-        y1: {
-          position: 'right',
-          min: sharedMin,
-          max: sharedMax,
-          title: { display: true, text: 'Deuda acumulada 5 años (€)' },
-          grid: { drawOnChartArea: false },
-          ticks: { stepSize: 500, font: { size: 12 }, callback: value => `€${value}` },
+          ticks: { stepSize: MONEY_SCALE.stepSize, font: { size: 12 }, callback: formatChartMoney },
         },
       },
     },
@@ -591,7 +595,6 @@ function renderChart(results) {
     chart.data.datasets[1].data = config.data.datasets[1].data;
     chart.data.datasets[2].data = config.data.datasets[2].data;
     chart.options.scales.y.max = config.options.scales.y.max;
-    chart.options.scales.y1.max = config.options.scales.y1.max;
     chart.update('none');
   }
   applyResponsive();
@@ -602,7 +605,7 @@ function renderFifoCallouts(results) {
   const byYear = Object.fromEntries(results.map(result => [result.year, result]));
   document.getElementById('fifo-callouts').innerHTML = FIFO_ALLOCATIONS.map(allocation => {
     const payment = byYear[allocation.paymentYear]?.actual || 0;
-    return `<p class="fifo-callout"><span class="fifo-arrow" aria-hidden="true">↖</span><strong>Pago ${allocation.paymentYear}: ${payment.toFixed(2)} €</strong> se aplica primero a la deuda de ${allocation.targetLabel} (FIFO).</p>`;
+    return `<p class="fifo-callout"><span class="fifo-arrow" aria-hidden="true">↖</span><strong>Pago ${allocation.paymentYear}: ${formatChartAmount(payment)}</strong> se aplica primero a la deuda de ${allocation.targetLabel} (FIFO).</p>`;
   }).join('');
 }
 
