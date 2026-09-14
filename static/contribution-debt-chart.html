@@ -1222,7 +1222,8 @@ function animationChartConfig(years, scale) {
           categoryPercentage: 0.82,
           maxBarThickness: 42,
           stack: 'money',
-          order: 1,
+          // Keep unallocated payment above the obligation it will cover.
+          order: 3,
         },
       ],
     },
