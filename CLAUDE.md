@@ -8,6 +8,13 @@ Minimalist static site generator in Rust (`src/main.rs`). Converts Markdown
 posts under `content/posts/<lang>/` into HTML. Deploys to GitHub Pages via
 `.github/workflows/deploy.yml`. Zero JavaScript.
 
+## Completion and publishing workflow
+
+For every completed change, run the relevant checks, commit the requested changes on
+`main`, and push them to `origin/main` in the same task. Do not stop with
+uncommitted local changes unless the user explicitly requests local-only work.
+Keep unrelated working-tree changes out of the commit.
+
 ## Writing rule: no signs of AI writing
 
 All prose in `content/` must read as human-written. Do not leave the mechanical
